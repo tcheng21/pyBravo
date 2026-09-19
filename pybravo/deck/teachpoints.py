@@ -30,6 +30,11 @@ _HEAD_TYPE_CATEGORY: dict[HeadType, str] = {
     HeadType.HT_384_D_70: "384ch_disposable",
     HeadType.HT_384_D_70_S2: "384ch_disposable",
     HeadType.HT_8_D_LT: "8ch_lt",
+    # AssayMAP seats cartridges rather than disposable tips, but it is a
+    # 96-channel head on the same SBS deck geometry, so it shares the 96-channel
+    # starting offsets. These are only *defaults* — a real instrument's
+    # teachpoints always come from its profile.
+    HeadType.HT_96_ASSAYMAP: "96ch_disposable",
 }
 
 

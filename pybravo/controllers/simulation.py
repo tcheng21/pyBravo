@@ -194,6 +194,8 @@ class SimulationController(BravoController):
         HeadType.HT_384_D_70: 2400,
         HeadType.HT_96_F_50: 2200,
         HeadType.HT_8_D_LT: 2000,
+        # From the AssayMAP instrument profile: "Head type AD register" = 2304.
+        HeadType.HT_96_ASSAYMAP: 2304,
     }
 
     def read_head_adc(self) -> int:

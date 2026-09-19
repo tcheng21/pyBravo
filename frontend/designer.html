@@ -1934,6 +1934,9 @@ const HEAD_GEOMETRY = {
     HT_1536_PINTOOL: { rows: 32, columns: 48 },
     HT_16_D_ST: { rows: 16, columns: 1 },
     HT_8_D_LT: { rows: 8, columns: 1 },
+    // Cartridges rather than tips, but still 96 positions on the SBS 9 mm grid.
+    // Mirrors head_geometry_for_type() in pybravo/head_mode.py.
+    HT_96_ASSAYMAP: { rows: 8, columns: 12 },
 };
 
 function getHeadGeometry(headType) {

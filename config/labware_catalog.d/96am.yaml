@@ -1,0 +1,344 @@
+# Labware the AssayMAP 96AM support needs, shipped with the feature.
+#
+# These are merged on top of whatever the catalog resolves to -- Mongo or the
+# local snapshot -- by build_labware_catalog(). They are NOT in the snapshot on
+# purpose: with Mongo configured the snapshot is overwritten on every successful
+# load, and committing a full snapshot would replace a site's own catalog.
+#
+# Agilent's standard definitions, converted from the vendor labware files. Every
+# dimension here is a property of the labware, not of any one instrument.
+#
+# height_mm is the vendor THICKNESS, and it is an input to head motion rather
+# than description: the AssayMAP references every Z to the top of the labware, so
+# the seated press depth and the stripper-plate shuck height are both computed
+# from it. Do not adjust it to make a plate "look right" in a viewer.
+labware:
+- id: lw-5ae0ff54b01a
+  name: 96 Eppendorf Twin.tec PCR
+  kind: sbs_plate
+  vendor: Agilent
+  catalog_number: ''
+  description: tip length 38.2 mm | vendor BASE_CLASS 1 | imported from 96 Eppendorf
+    Twin.tec PCR.xml.roiZip
+  base_class: microplate
+  wells: 96
+  length_mm: 127.76
+  width_mm: 85.48
+  height_mm: 16.0
+  stack_height_mm: 12.38
+  gripper_offset_mm: 8.0
+  lid_gripper_offset_mm: 0.0
+  empty_check_offset_mm: null
+  shim_thickness_mm: 0.0
+  can_be_sealed: false
+  sealed_height_mm: 0.0
+  sealed_stacking_height_mm: 0.0
+  can_have_lid: false
+  lidded_height_mm: 0.0
+  lidded_stack_height_mm: 0.0
+  lid_resting_height_mm: 0.0
+  lid_departure_height_mm: 0.0
+  max_robot_handling_speed: fast
+  rows: 0
+  cols: 0
+  well_depth_mm: 14.5
+  offset_x_mm: 0.0
+  offset_y_mm: 0.0
+  spacing_x_mm: 9.0
+  spacing_y_mm: 9.0
+  well_volume_ul: 0.0
+  well_diameter_mm: 6.22
+  disposable_tip_capacity_ul: 60.0
+  tip_definition_id: ''
+  supported_tip_ids: []
+  model_3d: ''
+  can_mount: false
+  can_be_mounted: false
+- id: lw-cadcb0f0f9c1
+  name: 96 V11 LT250 Tip Box 19477.002
+  kind: sbs_plate
+  vendor: Agilent
+  catalog_number: ''
+  description: 96 V11 LT250 Tip Box 19477.002  250ul capacity | tip length 55.5 mm
+    | vendor BASE_CLASS 6 | imported from 96 V11 LT250 Tip Box 19477.002.xml.roiZip
+  base_class: tip_box
+  wells: 96
+  length_mm: 127.76
+  width_mm: 85.48
+  height_mm: 60.53
+  stack_height_mm: 58.21
+  gripper_offset_mm: 8.0
+  lid_gripper_offset_mm: 19.0
+  empty_check_offset_mm: null
+  shim_thickness_mm: 0.0
+  can_be_sealed: false
+  sealed_height_mm: 0.0
+  sealed_stacking_height_mm: 0.0
+  can_have_lid: true
+  lidded_height_mm: 62.85
+  lidded_stack_height_mm: 60.37
+  lid_resting_height_mm: 39.85
+  lid_departure_height_mm: 27.0
+  max_robot_handling_speed: fast
+  rows: 0
+  cols: 0
+  well_depth_mm: 0.0
+  offset_x_mm: 0.0
+  offset_y_mm: 0.0
+  spacing_x_mm: 9.0
+  spacing_y_mm: 9.0
+  well_volume_ul: 0.0
+  well_diameter_mm: 0.0
+  disposable_tip_capacity_ul: 250.0
+  tip_definition_id: ''
+  supported_tip_ids: []
+  model_3d: ''
+  can_mount: false
+  can_be_mounted: false
+- id: lw-0c182cad7c78
+  name: 96 V11 LT250 Tip Box Standard
+  kind: sbs_plate
+  vendor: Agilent
+  catalog_number: ''
+  description: '96 V11 LT250 Tip Box 250ul capacity. Part numbers: 19477-002, 19477-012,
+    19477-032, 19477-072 | tip length 55.5 mm | vendor BASE_CLASS 6 | imported from
+    96 V11 LT250 Tip Box Standard.xml.roiZip'
+  base_class: tip_box
+  wells: 96
+  length_mm: 127.76
+  width_mm: 85.48
+  height_mm: 60.0
+  stack_height_mm: 57.5
+  gripper_offset_mm: 24.0
+  lid_gripper_offset_mm: 0.0
+  empty_check_offset_mm: null
+  shim_thickness_mm: 0.0
+  can_be_sealed: false
+  sealed_height_mm: 0.0
+  sealed_stacking_height_mm: 0.0
+  can_have_lid: false
+  lidded_height_mm: 0.0
+  lidded_stack_height_mm: 0.0
+  lid_resting_height_mm: 0.0
+  lid_departure_height_mm: 0.0
+  max_robot_handling_speed: fast
+  rows: 0
+  cols: 0
+  well_depth_mm: 0.0
+  offset_x_mm: 0.0
+  offset_y_mm: 0.0
+  spacing_x_mm: 9.0
+  spacing_y_mm: 9.0
+  well_volume_ul: 0.0
+  well_diameter_mm: 0.0
+  disposable_tip_capacity_ul: 250.0
+  tip_definition_id: ''
+  supported_tip_ids: []
+  model_3d: ''
+  can_mount: false
+  can_be_mounted: false
+- id: lw-006d2ad894c2
+  name: 96AM 250uL Tip Loading Station
+  kind: sbs_plate
+  vendor: Agilent
+  catalog_number: ''
+  description: 96 V11 LT250 Tip Box 19477.002  250 µl capacity | tip length 55.5 mm
+    | vendor BASE_CLASS 6 | imported from 96AM 250uL Tip Loading Station.xml.roiZip
+  base_class: tip_box
+  wells: 96
+  length_mm: 127.76
+  width_mm: 85.48
+  height_mm: 60.53
+  stack_height_mm: 58.21
+  gripper_offset_mm: 8.0
+  lid_gripper_offset_mm: 19.0
+  empty_check_offset_mm: null
+  shim_thickness_mm: 0.0
+  can_be_sealed: false
+  sealed_height_mm: 0.0
+  sealed_stacking_height_mm: 0.0
+  can_have_lid: true
+  lidded_height_mm: 62.85
+  lidded_stack_height_mm: 60.37
+  lid_resting_height_mm: 39.85
+  lid_departure_height_mm: 27.0
+  max_robot_handling_speed: fast
+  rows: 0
+  cols: 0
+  well_depth_mm: 0.0
+  offset_x_mm: 0.0
+  offset_y_mm: 0.0
+  spacing_x_mm: 9.0
+  spacing_y_mm: 9.0
+  well_volume_ul: 0.0
+  well_diameter_mm: 0.0
+  disposable_tip_capacity_ul: 250.0
+  tip_definition_id: ''
+  supported_tip_ids: []
+  model_3d: ''
+  can_mount: false
+  can_be_mounted: false
+- id: lw-b4799106e58b
+  name: 96AM Cartridge Rack and Receiver Plate
+  kind: sbs_plate
+  vendor: Agilent
+  catalog_number: ''
+  description: AssayMAP cartridge box with receiver plate | tip length 29.2 mm | vendor
+    BASE_CLASS 9 | imported from 96AM Cartridge Rack and Receiver Plate.xml.roiZip
+  base_class: AssayMap Cartridge Rack
+  wells: 96
+  length_mm: 127.76
+  width_mm: 85.48
+  height_mm: 42.6
+  stack_height_mm: 42.6
+  gripper_offset_mm: 2.0
+  lid_gripper_offset_mm: 0.0
+  empty_check_offset_mm: null
+  shim_thickness_mm: 0.0
+  can_be_sealed: false
+  sealed_height_mm: 0.0
+  sealed_stacking_height_mm: 0.0
+  can_have_lid: false
+  lidded_height_mm: 0.0
+  lidded_stack_height_mm: 0.0
+  lid_resting_height_mm: 0.0
+  lid_departure_height_mm: 0.0
+  max_robot_handling_speed: fast
+  rows: 0
+  cols: 0
+  well_depth_mm: 0.0
+  offset_x_mm: 0.0
+  offset_y_mm: 0.0
+  spacing_x_mm: 9.0
+  spacing_y_mm: 9.0
+  well_volume_ul: 0.0
+  well_diameter_mm: 0.0
+  disposable_tip_capacity_ul: 60.0
+  tip_definition_id: ''
+  supported_tip_ids: []
+  model_3d: ''
+  can_mount: false
+  can_be_mounted: false
+- id: lw-5ec9d2c1a484
+  name: 96AM Cartridge Seating Station
+  kind: sbs_plate
+  vendor: Agilent
+  catalog_number: ''
+  description: 96 V11 LT250 Tip Box 19477.002  250ul capacity | tip length 29.2 mm
+    | vendor BASE_CLASS 9 | imported from 96AM Cartridge Seating Station.xml.roiZip
+  base_class: AssayMap Cartridge Rack
+  wells: 96
+  length_mm: 127.76
+  width_mm: 85.48
+  height_mm: 64.0
+  stack_height_mm: 58.21
+  gripper_offset_mm: 8.0
+  lid_gripper_offset_mm: 19.0
+  empty_check_offset_mm: null
+  shim_thickness_mm: 0.0
+  can_be_sealed: false
+  sealed_height_mm: 0.0
+  sealed_stacking_height_mm: 0.0
+  can_have_lid: true
+  lidded_height_mm: 62.85
+  lidded_stack_height_mm: 60.37
+  lid_resting_height_mm: 39.85
+  lid_departure_height_mm: 27.0
+  max_robot_handling_speed: fast
+  rows: 0
+  cols: 0
+  well_depth_mm: 0.0
+  offset_x_mm: 0.0
+  offset_y_mm: 0.0
+  spacing_x_mm: 9.0
+  spacing_y_mm: 9.0
+  well_volume_ul: 0.0
+  well_diameter_mm: 0.0
+  disposable_tip_capacity_ul: 250.0
+  tip_definition_id: ''
+  supported_tip_ids: []
+  model_3d: ''
+  can_mount: false
+  can_be_mounted: false
+- id: lw-20726fce134a
+  name: 96AM Receiver Plate
+  kind: sbs_plate
+  vendor: Agilent
+  catalog_number: ''
+  description: tip length 38.2 mm | vendor BASE_CLASS 1 | imported from 96AM Receiver
+    Plate.xml.roiZip
+  base_class: microplate
+  wells: 96
+  length_mm: 127.76
+  width_mm: 85.48
+  height_mm: 27.75
+  stack_height_mm: 0.0
+  gripper_offset_mm: 2.0
+  lid_gripper_offset_mm: 0.0
+  empty_check_offset_mm: null
+  shim_thickness_mm: 0.0
+  can_be_sealed: false
+  sealed_height_mm: 0.0
+  sealed_stacking_height_mm: 0.0
+  can_have_lid: false
+  lidded_height_mm: 0.0
+  lidded_stack_height_mm: 0.0
+  lid_resting_height_mm: 0.0
+  lid_departure_height_mm: 0.0
+  max_robot_handling_speed: fast
+  rows: 0
+  cols: 0
+  well_depth_mm: 14.5
+  offset_x_mm: 0.0
+  offset_y_mm: 0.0
+  spacing_x_mm: 9.0
+  spacing_y_mm: 9.0
+  well_volume_ul: 250.0
+  well_diameter_mm: 5.5
+  disposable_tip_capacity_ul: 60.0
+  tip_definition_id: ''
+  supported_tip_ids: []
+  model_3d: ''
+  can_mount: false
+  can_be_mounted: false
+- id: lw-fba7222815b4
+  name: 96AM Tip Wash Station
+  kind: sbs_plate
+  vendor: Agilent
+  catalog_number: ''
+  description: 96 V11 Autofilling MicroWash AssayMAP version | tip length 38.2 mm
+    | vendor BASE_CLASS 4 | imported from 96AM Tip Wash Station.xml.roiZip
+  base_class: Tip Wash Station
+  wells: 96
+  length_mm: 127.76
+  width_mm: 85.48
+  height_mm: 49.5
+  stack_height_mm: 0.0
+  gripper_offset_mm: 2.0
+  lid_gripper_offset_mm: 0.0
+  empty_check_offset_mm: null
+  shim_thickness_mm: 0.0
+  can_be_sealed: false
+  sealed_height_mm: 0.0
+  sealed_stacking_height_mm: 0.0
+  can_have_lid: false
+  lidded_height_mm: 0.0
+  lidded_stack_height_mm: 0.0
+  lid_resting_height_mm: 0.0
+  lid_departure_height_mm: 0.0
+  max_robot_handling_speed: fast
+  rows: 0
+  cols: 0
+  well_depth_mm: 19.8
+  offset_x_mm: 0.0
+  offset_y_mm: 0.0
+  spacing_x_mm: 9.0
+  spacing_y_mm: 9.0
+  well_volume_ul: 250.0
+  well_diameter_mm: 9.0
+  disposable_tip_capacity_ul: 60.0
+  tip_definition_id: ''
+  supported_tip_ids: []
+  model_3d: ''
+  can_mount: false
+  can_be_mounted: false

@@ -57,5 +57,66 @@ offsets:
     tips_on_z_offset: 0.0
 
   # ---------------------------------------------------------------------------
+  # AssayMAP 96AM cartridge head. All four rows below are derived from captured
+  # VWorks traffic (Off_PartialTipOn_Asp_Disp + Cartridge_On_Off_Pos6_VW14),
+  # referenced to the top of the labware. Measured, not tuned:
+  #
+  #     seated Z = labware_top + 60.50     one constant, every consumable
+  #     shuck Z  = seated - 30.00          LT250 tips
+  #              = seated - 23.00          cartridges
+  #
+  # pyBravo already computes tips_on_position as (teach_z + teach_tip_length -
+  # labware.height), which is labware-referenced in exactly the same way, so the
+  # capture reduces to two offsets: press 5.00 mm deeper than that position, and
+  # eject 25.0 mm (tips) or 18.0 mm (cartridges) above it. The seated anchor holds
+  # to 0.007 mm across two different tip labwares and the cartridge rack.
+  #
+  # tips_on_z_offset 5.0: without it the press target sits 5 mm SHALLOWER than
+  # VWorks commands. That is the dangerous direction here -- the press is force
+  # limited, and seating is detected by the axis stopping short of target, so too
+  # shallow a target risks both under-seating and a false "nothing there".
+  #
+  # tips_off_w_position is deliberately absent: this head does not eject with W
+  # (a gripper-actuated stripper plate does it), so the rows must not drive W.
+  #
+  # NOT YET RUN ON HARDWARE. The profile default of 15.0 that these replace was
+  # wrong for both consumables (10 mm shallow for tips, 3 mm for cartridges).
+
+  - head_type: HT_96_ASSAYMAP
+    tipbox: 96AM 250uL Tip Loading Station
+    tips_off_z_offset: 25.0
+    tips_on_z_offset: 5.0
+
+  - head_type: HT_96_ASSAYMAP
+    tipbox: 96AM Cartridge Rack and Receiver Plate
+    tips_off_z_offset: 18.0
+    tips_on_z_offset: 5.0
+
+  # Same cartridge geometry, different fixture thickness (64.00 vs 42.60). The
+  # offsets are identical because tips_on_position already subtracts the labware
+  # height -- which is the whole point of anchoring to the labware top.
+  - head_type: HT_96_ASSAYMAP
+    tipbox: 96AM Cartridge Seating Station
+    tips_off_z_offset: 18.0
+    tips_on_z_offset: 5.0
+
+  # The two plain Agilent LT250 boxes. 19477.002 is the one on deck position 3 in
+  # the capture; its vendor THICKNESS of 60.53 confirms the value the capture
+  # implied. "Standard" is a different fixture at 60.00 -- 0.53 mm thinner.
+  #
+  # Both carry the same offsets, and that is the point of anchoring to the labware
+  # top: the fixture difference is already handled by height_mm, so only the
+  # consumable (LT250 tips) sets these numbers.
+  - head_type: HT_96_ASSAYMAP
+    tipbox: 96 V11 LT250 Tip Box 19477.002
+    tips_off_z_offset: 25.0
+    tips_on_z_offset: 5.0
+
+  - head_type: HT_96_ASSAYMAP
+    tipbox: 96 V11 LT250 Tip Box Standard
+    tips_off_z_offset: 25.0
+    tips_on_z_offset: 5.0
+
+  # ---------------------------------------------------------------------------
   # Template — copy and edit per (head, tip box) you run. A tip box with no row
   # here keeps using the profile's safety.* defaults, so add one only to override.

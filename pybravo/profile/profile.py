@@ -89,6 +89,15 @@ class SafetyConfig:
     allow_tos_fluid_handling: bool = False
     enable_tips_on_tip_touch: bool = False
     pin_tool_tip_type: str = "33 mm"
+    # Cartridge ejection ("shucking") for heads that eject with the gripper
+    # rather than the W axis — currently AssayMAP. G moves by
+    # ``cartridge_shuck_g_mm`` and the gripper Z by ``cartridge_shuck_zg_mm``,
+    # both then returned to their starting positions. Signs follow the machine's
+    # own convention: G's open end is its minimum, and Z is positive-downward, so
+    # these are deltas rather than "open"/"up" amounts. Ignored by heads that
+    # eject via W.
+    cartridge_shuck_g_mm: float = 4.0
+    cartridge_shuck_zg_mm: float = 20.0
 
 
 @dataclass
@@ -316,14 +325,26 @@ class BravoProfile:
             data = yaml.safe_load(f)
         return cls._from_dict(data)
 
+    def resolve_tips_for_head(self) -> None:
+        """Re-resolve the tip fields to suit ``head.head_type``.
+
+        Call this whenever the head type changes. Tips are head-specific: a tip
+        left over from the previous head carries the wrong length, and
+        ``teach_tip_length_mm`` feeds
+        ``deck_surface_Z = teachpoint_Z + teach_tip_length_mm``. Carrying a stale
+        value across a head swap drives every subsequent Z by that error — 29 mm
+        between an AssayMAP teach tip and a 384ST tip, which is a crash.
+        """
+        self.head.default_tip_id = get_default_tip_id_for_head(self.head.head_type)
+        self.head.teach_tip_id = self.head.default_tip_id
+        self.head.default_tip_capacity = get_tip_capacity_ul(self.head.head_type, self.head.default_tip_id)
+        self.head.teach_tip_capacity = get_tip_capacity_ul(self.head.head_type, self.head.teach_tip_id)
+        self.head.teach_tip_length_mm = get_tip_length_mm(self.head.head_type, self.head.teach_tip_id)
+
     @classmethod
     def default(cls) -> BravoProfile:
         profile = cls()
-        profile.head.default_tip_id = get_default_tip_id_for_head(profile.head.head_type)
-        profile.head.teach_tip_id = profile.head.default_tip_id
-        profile.head.default_tip_capacity = get_tip_capacity_ul(profile.head.head_type, profile.head.default_tip_id)
-        profile.head.teach_tip_capacity = get_tip_capacity_ul(profile.head.head_type, profile.head.teach_tip_id)
-        profile.head.teach_tip_length_mm = get_tip_length_mm(profile.head.head_type, profile.head.teach_tip_id)
+        profile.resolve_tips_for_head()
         for axis in Axis:
             profile.axes[axis.name] = get_default_axis_config(axis)
         profile.teachpoints = Teachpoints()
@@ -379,6 +400,8 @@ class BravoProfile:
                 "allow_tos_fluid_handling": self.safety.allow_tos_fluid_handling,
                 "enable_tips_on_tip_touch": self.safety.enable_tips_on_tip_touch,
                 "pin_tool_tip_type": self.safety.pin_tool_tip_type,
+                "cartridge_shuck_g_mm": self.safety.cartridge_shuck_g_mm,
+                "cartridge_shuck_zg_mm": self.safety.cartridge_shuck_zg_mm,
             },
             "vision": {
                 "enabled": self.vision.enabled,
@@ -402,6 +425,7 @@ class BravoProfile:
                     "homing_soft_stop_decel": cfg.homing_soft_stop_decel,
                     "min_move_full_accel": cfg.min_move_full_accel,
                     "check_for_alignment": 1 if cfg.check_for_alignment else 0,
+                    "darwin_calibration_offset": cfg.darwin_calibration_offset,
                 }
                 for level in SpeedLevel:
                     if level in cfg.speeds:
@@ -536,6 +560,7 @@ class BravoProfile:
                     homing_soft_stop_decel=float(ax_data.get("homing_soft_stop_decel", getattr(base, "homing_soft_stop_decel", 300.0))),
                     min_move_full_accel=float(ax_data.get("min_move_full_accel", getattr(base, "min_move_full_accel", 0.0))),
                     check_for_alignment=bool(ax_data.get("check_for_alignment", getattr(base, "check_for_alignment", True))),
+                    darwin_calibration_offset=float(ax_data.get("darwin_calibration_offset", getattr(base, "darwin_calibration_offset", 0.0))),
                     speeds=speeds,
                 )
         # Teachpoints: from YAML or defaults

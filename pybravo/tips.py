@@ -20,6 +20,24 @@ class TipDefinition:
     source: str
     model_3d: str | None = None
     compatible_heads: tuple[str, ...] = ()
+    # What the head actually mounts. "tip" for disposable pipette tips,
+    # "cartridge" for AssayMAP packed-bed cartridges. The distinction is
+    # behavioural, not cosmetic: the vendor documents that the W axis goes to
+    # zero for Tips On/Off — emptying the syringes — but is deliberately NOT
+    # engaged for cartridge mounting or removal, so that fluid can be held in
+    # the syringes across a cartridge change.
+    kind: str = "tip"
+
+
+def is_cartridge_tip(head_type: HeadType | str, tip_id: str | None) -> bool:
+    """True when *tip_id* names a cartridge rather than a disposable tip."""
+    if not tip_id:
+        return False
+    definition = next(
+        (t for t in get_tip_definitions_for_head(head_type) if t.tip_id == tip_id),
+        None,
+    )
+    return bool(definition and definition.kind == "cartridge")
 
 
 _SHORT_TIP_OPTIONS = (
@@ -150,11 +168,21 @@ def get_default_tip_id_for_head(head_type: HeadType | str) -> str | None:
     options = get_tip_definitions_for_head(normalized)
     if not options:
         return None
-    preferred_capacity = 200.0 if normalized in {
+    if normalized in {
         HeadType.HT_8_D_LT,
         HeadType.HT_96_D_200,
         HeadType.HT_96_D_200_S2,
-    } else 30.0
+    }:
+        preferred_capacity = 200.0
+    elif normalized is HeadType.HT_96_ASSAYMAP:
+        # AssayMAP is taught with a 250 µL LT tip and operated with cartridges;
+        # the instrument profile records "Default tip = 250" accordingly. Pick the
+        # teach tip explicitly — otherwise this falls through to options[0], which
+        # is whichever entry happens to sort first, and the two differ by 26 mm of
+        # tip length.
+        preferred_capacity = 250.0
+    else:
+        preferred_capacity = 30.0
     match = get_tip_definition(normalized, preferred_capacity)
     return match.tip_id if match is not None else options[0].tip_id
 
@@ -231,6 +259,7 @@ def load_tip_definitions() -> list[TipDefinition]:
                 source=str(item.get("source") or "user"),
                 model_3d=str(item.get("model_3d") or "") or None,
                 compatible_heads=tuple(str(value) for value in list(item.get("compatible_heads") or [])),
+                kind=str(item.get("kind") or "tip"),
             )
         )
     return tips

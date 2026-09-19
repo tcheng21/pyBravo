@@ -1,0 +1,233 @@
+{
+  "note": "W-axis parameter table for the AssayMAP 96AM head: the values the vendor software writes to the W node at initialization. A property of the head model, not of any one instrument. The table is written twice, each copy followed by PARAM_DB_APPLY; one copy is recorded here. Values are the raw uint32 words.",
+  "writes": [
+    {
+      "param": 24,
+      "raw": "0x3E9EB852"
+    },
+    {
+      "param": 25,
+      "raw": "0x44744000"
+    },
+    {
+      "param": 28,
+      "raw": "0x3E9EB852"
+    },
+    {
+      "param": 29,
+      "raw": "0x44744000"
+    },
+    {
+      "param": 33,
+      "raw": "0x3FE00000"
+    },
+    {
+      "param": 34,
+      "raw": "0x40A00000"
+    },
+    {
+      "param": 35,
+      "raw": "0x3B03126F"
+    },
+    {
+      "param": 36,
+      "raw": "0x3F733333"
+    },
+    {
+      "param": 49,
+      "raw": "0x43E10000"
+    },
+    {
+      "param": 50,
+      "raw": "0x40000000"
+    },
+    {
+      "param": 51,
+      "raw": "0x3AA3D70A"
+    },
+    {
+      "param": 112,
+      "raw": "0x3FB8CCCD"
+    },
+    {
+      "param": 113,
+      "raw": "0x449C4000"
+    },
+    {
+      "param": 114,
+      "raw": "0x3FB8CCCD"
+    },
+    {
+      "param": 126,
+      "raw": "0x000007D0"
+    },
+    {
+      "param": 127,
+      "raw": "0x3DC1205C"
+    },
+    {
+      "param": 128,
+      "raw": "0x3E19999A"
+    },
+    {
+      "param": 119,
+      "raw": "0x38D1B717"
+    },
+    {
+      "param": 124,
+      "raw": "0x3C23D70A"
+    },
+    {
+      "param": 99,
+      "raw": "0x3CF5C28F"
+    },
+    {
+      "param": 105,
+      "raw": "0x3C888889"
+    },
+    {
+      "param": 108,
+      "raw": "0x3E4C0000"
+    },
+    {
+      "param": 81,
+      "raw": "0x3FA3D70A"
+    },
+    {
+      "param": 82,
+      "raw": "0x43480000"
+    },
+    {
+      "param": 92,
+      "raw": "0x3DC1205C"
+    },
+    {
+      "param": 67,
+      "raw": "0x3F0CCCCD"
+    },
+    {
+      "param": 68,
+      "raw": "0x3CF5C28F"
+    },
+    {
+      "param": 69,
+      "raw": "0x3ECCCCCD"
+    },
+    {
+      "param": 70,
+      "raw": "0x3D4CCCCD"
+    },
+    {
+      "param": 42,
+      "raw": "0x40000000"
+    },
+    {
+      "param": 43,
+      "raw": "0x3C23D70A"
+    },
+    {
+      "param": 44,
+      "raw": "0x3AE56042"
+    },
+    {
+      "param": 57,
+      "raw": "0x43E10000"
+    },
+    {
+      "param": 58,
+      "raw": "0x41F00000"
+    },
+    {
+      "param": 59,
+      "raw": "0x3A83126F"
+    },
+    {
+      "param": 78,
+      "raw": "0x00000000"
+    },
+    {
+      "param": 125,
+      "raw": "0x3D451EB8"
+    },
+    {
+      "param": 39,
+      "raw": "0x40300000"
+    },
+    {
+      "param": 40,
+      "raw": "0x3E4CCCCD"
+    },
+    {
+      "param": 41,
+      "raw": "0x3B03126F"
+    },
+    {
+      "param": 54,
+      "raw": "0x44098000"
+    },
+    {
+      "param": 55,
+      "raw": "0x40000000"
+    },
+    {
+      "param": 45,
+      "raw": "0x4009999A"
+    },
+    {
+      "param": 46,
+      "raw": "0x3C23D70A"
+    },
+    {
+      "param": 47,
+      "raw": "0x3AE56042"
+    },
+    {
+      "param": 60,
+      "raw": "0x44098000"
+    },
+    {
+      "param": 61,
+      "raw": "0x42C80000"
+    },
+    {
+      "param": 62,
+      "raw": "0x3A83126F"
+    },
+    {
+      "param": 115,
+      "raw": "0x3FB8CCCD"
+    },
+    {
+      "param": 116,
+      "raw": "0x449C4000"
+    },
+    {
+      "param": 117,
+      "raw": "0x3FB8CCCD"
+    },
+    {
+      "param": 71,
+      "raw": "0x3EB33333"
+    },
+    {
+      "param": 72,
+      "raw": "0x00000000"
+    },
+    {
+      "param": 73,
+      "raw": "0x00000000"
+    },
+    {
+      "param": 74,
+      "raw": "0x00000000"
+    },
+    {
+      "param": 120,
+      "raw": "0x38D1B717"
+    },
+    {
+      "param": 48,
+      "raw": "0x40000000"
+    }
+  ]
+}

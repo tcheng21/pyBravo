@@ -25,6 +25,11 @@ class AxisConfig:
     homing_soft_stop_decel: float = 300.0
     min_move_full_accel: float = 0.0
     check_for_alignment: bool = True
+    # Per-machine zero-point correction for Darwin-generation instruments. On the
+    # W axis this is what makes 0 engineering units mean 0 µL: an AssayMAP head
+    # homes ~1.44 mm away from the nominal zero, and without this the whole
+    # volume scale is shifted.
+    darwin_calibration_offset: float = 0.0
     speeds: dict[SpeedLevel, SpeedProfile] = field(default_factory=dict)
 
 

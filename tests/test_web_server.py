@@ -403,6 +403,7 @@ def test_builtin_labware_mirrors_critical_mongo_geometry(monkeypatch, tmp_path):
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_COLLECTION", "")
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(tmp_path / "missing_labware_snapshot.yaml"))
 
     catalog = build_labware_catalog()
@@ -464,6 +465,7 @@ def test_build_labware_catalog_writes_local_snapshot_after_mongo_sync(monkeypatc
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "mongodb://example")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "labdb")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_COLLECTION", "types")
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setattr(labware_module, "MongoLabwareCatalog", FakeMongoCatalog)
 
@@ -496,6 +498,7 @@ def test_build_labware_catalog_uses_local_snapshot_when_mongo_unavailable(monkey
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "mongodb://example")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "labdb")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_COLLECTION", "types")
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setattr(labware_module, "MongoLabwareCatalog", FailingMongoCatalog)
 
@@ -543,6 +546,7 @@ def test_build_labware_catalog_collapses_duplicate_names_and_preserves_alias_loo
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "mongodb://example")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "labdb")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_COLLECTION", "types")
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setattr(labware_module, "MongoLabwareCatalog", FakeMongoCatalog)
 
@@ -567,6 +571,7 @@ def test_labware_editor_writes_through_to_mongo(monkeypatch, tmp_path):
     fake_client = _FakeMongoClient({"labdb": _FakeMongoDatabase({"types": mongo_types, "classes": mongo_classes})})
 
     monkeypatch.setenv("PYBRAVO_LABWARE_EDITOR_PATH", str(editor_path))
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "mongodb://example")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "labdb")
@@ -618,6 +623,7 @@ def test_labware_editor_prefers_mongo_over_stale_local_store(monkeypatch, tmp_pa
     fake_client = _FakeMongoClient({"labdb": _FakeMongoDatabase({"types": mongo_types, "classes": mongo_classes})})
 
     monkeypatch.setenv("PYBRAVO_LABWARE_EDITOR_PATH", str(editor_path))
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "mongodb://example")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "labdb")
@@ -634,6 +640,7 @@ def test_labware_editor_patch_type_clears_membership_and_collapses_duplicates(mo
     editor_path = tmp_path / "labware_editor.yaml"
     snapshot_path = tmp_path / "labware_snapshot.yaml"
     monkeypatch.setenv("PYBRAVO_LABWARE_EDITOR_PATH", str(editor_path))
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "")
@@ -693,6 +700,7 @@ def test_labware_editor_write_store_to_mongo_removes_duplicate_docs_for_same_typ
     fake_client = _FakeMongoClient({"labdb": _FakeMongoDatabase({"types": mongo_types, "classes": mongo_classes})})
 
     monkeypatch.setenv("PYBRAVO_LABWARE_EDITOR_PATH", str(editor_path))
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "mongodb://example")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "labdb")
@@ -734,6 +742,7 @@ def test_editor_model_asset_url_survives_into_runtime_snapshot(monkeypatch, tmp_
     editor_path = tmp_path / "labware_editor.yaml"
     snapshot_path = tmp_path / "labware_snapshot.yaml"
     monkeypatch.setenv("PYBRAVO_LABWARE_EDITOR_PATH", str(editor_path))
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "")
@@ -809,6 +818,7 @@ async def test_labware_editor_type_routes_round_trip(monkeypatch, tmp_path):
     editor_path = tmp_path / "labware_editor.yaml"
     snapshot_path = tmp_path / "labware_snapshot.yaml"
     monkeypatch.setenv("PYBRAVO_LABWARE_EDITOR_PATH", str(editor_path))
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "")
@@ -836,6 +846,7 @@ async def test_update_labware_type_refreshes_live_deck_labware(monkeypatch, tmp_
     editor_path = tmp_path / "labware_editor.yaml"
     snapshot_path = tmp_path / "labware_snapshot.yaml"
     monkeypatch.setenv("PYBRAVO_LABWARE_EDITOR_PATH", str(editor_path))
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "")
@@ -888,6 +899,7 @@ async def test_labware_editor_class_delete_removes_membership(monkeypatch, tmp_p
     editor_path = tmp_path / "labware_editor.yaml"
     snapshot_path = tmp_path / "labware_snapshot.yaml"
     monkeypatch.setenv("PYBRAVO_LABWARE_EDITOR_PATH", str(editor_path))
+    monkeypatch.setenv("PYBRAVO_LABWARE_OVERLAY_DIR", str(tmp_path / "no_overlays"))
     monkeypatch.setenv("PYBRAVO_LABWARE_SNAPSHOT_PATH", str(snapshot_path))
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_URI", "")
     monkeypatch.setenv("PYBRAVO_LABWARE_MONGO_DB", "")

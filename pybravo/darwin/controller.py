@@ -60,6 +60,7 @@ from pybravo.types import (
     GRIP_POSITION_TOLERANCE,
     OPEN_GRIPPER_POSITION,
     TICKS_PER_MM,
+    VENDOR_HEAD_TYPE_MAP,
     Axis,
     DeviceStateFlag,
     GripperDetectionState,
@@ -630,8 +631,9 @@ class DarwinController(BravoController):
     def read_smart_head_type(self) -> int:
         """Read the head-type byte from smart-head EEPROM offset 1.
 
-        The byte value corresponds directly to a ``HeadType`` integer (e.g.,
-        3 → HT_96_D_70).
+        The value is a *vendor* head-type constant, not a ``HeadType`` member —
+        the two numbering schemes are unrelated. Use :meth:`detect_head_type`
+        to translate it.
 
         Call ``detect_smart_head()`` first — this will raise if no smart head
         is present.
@@ -648,18 +650,20 @@ class DarwinController(BravoController):
         return value & 0xFF
 
     def detect_head_type(self) -> HeadType:
-        """DEPRECATED: byte → HeadType mapping is not reliable yet.
+        """Translate the smart-head EEPROM byte into a ``HeadType``.
 
-        Observed on a physical 384ST 70µL Series III head: EEPROM byte = 1.
-        The Python ``HeadType`` enum follows the hardware head-type
-        constants, but the firmware-side head-type byte encoding is a *separate*
-        convention we don't have documented. Without ground truth, returning
-        ``HeadType(byte)`` produces confident-but-wrong answers (byte=1 would
-        return HT_8_F_50 — the Python enum's value 1, completely unrelated).
+        Returns ``HT_UNKNOWN`` when no smart head is present or the byte is not
+        one we have confirmed against real hardware. Unknown bytes are never
+        guessed: ``HeadType(byte)`` would be confidently wrong, because the
+        vendor numbering and the ``HeadType`` values are unrelated conventions
+        (vendor 1 is a 384ST, but ``HeadType(1)`` is ``HT_8_F_50``).
 
-        Callers should use :meth:`read_head_identification` instead.
+        Callers that need the raw values can use
+        :meth:`read_head_identification`.
         """
-        return HeadType.HT_UNKNOWN
+        if not self.detect_smart_head():
+            return HeadType.HT_UNKNOWN
+        return VENDOR_HEAD_TYPE_MAP.get(self.read_smart_head_type(), HeadType.HT_UNKNOWN)
 
     def read_head_identification(self) -> dict:
         """Read raw head-identification data without interpreting it.
@@ -1326,9 +1330,21 @@ class DarwinController(BravoController):
         # Update the W-axis calibration with this head's hardware range
         cfg = config_for_head(head_type)
         if cfg is not None:
-            self._axes[Axis.W].calibration = cfg.calibration()
+            self._axes[Axis.W].calibration = cfg.calibration(self._w_calibration_offset())
             # Hardware range changed → any cached motion limits are stale
             self._axes[Axis.W].limits = None
+
+    def _w_calibration_offset(self) -> float:
+        """Per-machine W zero-point correction, in mm, from the active profile.
+
+        The plunger's mechanical zero does not sit at the nominal hardware zero;
+        the instrument profile records the difference. Without it, every absolute
+        volume is displaced by that amount — on an AssayMAP head the offset is
+        ~1.44 mm, which is ~6 µL.
+        """
+        axes = getattr(self._profile, "axes", None) or {}
+        w_cfg = axes.get("W") if hasattr(axes, "get") else None
+        return float(getattr(w_cfg, "darwin_calibration_offset", 0.0) or 0.0)
 
     def ul_to_mm(self, volume_ul: float) -> float:
         """Convert pipette volume (µL) to W-axis mm for the current head."""

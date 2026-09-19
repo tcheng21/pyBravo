@@ -93,20 +93,40 @@ def test_read_smart_head_type_sends_eeprom_read_and_returns_byte(controller):
     assert rd_eeprom and rd_eeprom[-1].cmd_val == 0x0101
 
 
-# --- detect_head_type (deprecated — always HT_UNKNOWN until mapping known) ---
+# --- detect_head_type (vendor byte → HeadType, verified entries only) --------
 
 
-def test_detect_head_type_is_always_unknown_until_mapping_verified(controller):
-    """detect_head_type() always returns HT_UNKNOWN for safety until we have
-    ground-truth byte→HeadType mappings from real hardware.
+def test_detect_head_type_maps_confirmed_vendor_bytes(controller):
+    """Vendor head-type bytes confirmed against real hardware translate."""
+    ctrl, fake = controller
+    for vendor_byte, expected in (
+        (1, HeadType.HT_384_D_70),      # 384ST 70µL Series III, observed on bench
+        (3, HeadType.HT_96_D_200),      # 96LT profile export
+        (14, HeadType.HT_96_ASSAYMAP),  # AssayMAP head and profile
+    ):
+        fake.storage[(1, 0, DarwinMasterNodeSubCommands.SMART_RD_EEPROM_VAL)] = vendor_byte
+        assert ctrl.detect_head_type() == expected
 
-    Observed on bench: a 384ST 70µL Series III head returned eeprom_byte=1,
-    which is NOT HT_8_F_50 despite the enum value coincidentally matching.
+
+def test_detect_head_type_never_guesses_unknown_bytes(controller):
+    """An unconfirmed byte must be HT_UNKNOWN, never HeadType(byte).
+
+    The two numbering schemes are unrelated, so coercing the byte would be
+    confidently wrong — vendor 1 is a 384ST, but HeadType(1) is HT_8_F_50.
     """
     ctrl, fake = controller
-    fake.storage[(1, 0, DarwinMasterNodeSubCommands.SMART_RD_EEPROM_VAL)] = 3
-    # Even with a seemingly-sensible byte value, the deprecated method
-    # returns HT_UNKNOWN to force callers to use read_head_identification()
+    fake.storage[(1, 0, DarwinMasterNodeSubCommands.SMART_RD_EEPROM_VAL)] = 99
+    assert ctrl.detect_head_type() == HeadType.HT_UNKNOWN
+
+
+def test_detect_head_type_unknown_without_smart_head(controller):
+    """No smart head attached → HT_UNKNOWN rather than a stale/garbage byte."""
+    ctrl, fake = controller
+    fake.seed_nak(
+        InstructionAddress(1, 0),
+        DarwinMasterNodeSubCommands.SMART_INIT,
+        CommandNAKTypes.UNSUCCESSFUL_OPERATION,
+    )
     assert ctrl.detect_head_type() == HeadType.HT_UNKNOWN
 
 

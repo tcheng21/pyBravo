@@ -216,6 +216,38 @@ class HeadType(IntEnum):
     def is_assaymap(self) -> bool:
         return "ASSAYMAP" in self.name
 
+    @property
+    def mounts_consumable(self) -> bool:
+        """True for heads that mount a removable consumable of known length.
+
+        Disposable-tip heads mount tips; AssayMAP mounts cartridges. Either way
+        the consumable sets the distance from the head's reference face to the
+        working tip, so teachpoints taught with one consumable need a delta
+        applied when a different one is fitted — and liquid handling must not
+        proceed with nothing mounted at all.
+
+        Fixed-tip heads and pin tools mount nothing removable, so their
+        teachpoints already describe the working tip.
+        """
+        return self.is_disposable or self.is_assaymap
+
+
+# Vendor head-type constants → HeadType.
+#
+# The instrument uses its own head-type numbering, unrelated to the HeadType
+# values above. The same number appears in three places: the smart-head EEPROM
+# at offset 1, the "Head type" key in a registry profile export, and the
+# "Head type" value in a VWorks device profile.
+#
+# Only entries confirmed against real hardware belong here. An unrecognised
+# number must resolve to HT_UNKNOWN rather than HeadType(number), which would be
+# confidently wrong — vendor 1 is a 384ST, but HeadType(1) is HT_8_F_50.
+VENDOR_HEAD_TYPE_MAP: dict[int, HeadType] = {
+    1: HeadType.HT_384_D_70,      # confirmed against a 384ST 70uL Series III head
+    3: HeadType.HT_96_D_200,      # confirmed against a 96LT profile export
+    14: HeadType.HT_96_ASSAYMAP,  # confirmed against an AssayMAP head and profile
+}
+
 
 # ---------------------------------------------------------------------------
 # Speed profiles

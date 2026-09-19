@@ -101,6 +101,24 @@ _DARWIN_HEAD_RESISTOR_OHMS: dict[HeadType, int] = {
 }
 
 
+# VWorks names some labware base classes after the fixture rather than after its
+# behaviour, and those names are stored verbatim in the catalog because that is
+# what the vendor calls them. This maps the ones that behave as a tip box onto
+# pybravo's own vocabulary, in one place, so every base_class check inherits it.
+#
+# "AssayMap Cartridge Rack" holds cartridges the head mounts and strips, so the
+# tip-box paths are exactly right for it -- not only the guards that refuse to
+# stack or delid it, but the Tips Off tracking and tip-box occupancy checks that
+# are keyed on the same string.
+#
+# "Tip Wash Station" is deliberately NOT aliased. It is a fixture, but it is one
+# we aspirate from, and the tip-box branch in _plate_selection returns None --
+# which would leave its wells unselectable. It behaves as plate-style labware.
+_VENDOR_BASE_CLASS_ALIASES = {
+    "assaymap cartridge rack": "tip_box",
+}
+
+
 class Bravo:
     """High-level interface for the Agilent Bravo liquid handler.
 
@@ -209,6 +227,36 @@ class Bravo:
         else:
             raise ValueError(f"Unknown controller type: {cfg.controller_type}")
         logger.info("Connected via %s", cfg.controller_type)
+        self._apply_profile_head_to_controller()
+
+    def _apply_profile_head_to_controller(self) -> None:
+        """Push the profile's head type onto the freshly-opened controller.
+
+        The profile names the head, but until this runs the controller keeps its
+        default W calibration. On an AssayMAP that means W is scaled as
+        _DTIP_STANDARD -- an 80 mm hardware range instead of 100 -- so every
+        volume would be commanded 20% low and homing would park the plunger in the
+        wrong frame. Nothing errors; the numbers just come out quietly wrong,
+        which is why this went unnoticed behind a `POST /api/change_head` that
+        operators had to remember after every connect.
+
+        Failure here must not abort the connection: the head calibration is worth
+        warning loudly about, but a connected instrument with a default frame is
+        more useful than no connection at all.
+        """
+        head_type = self._profile.head.head_type
+        setter = getattr(self._controller, "set_head_type", None)
+        if setter is None:
+            return
+        try:
+            setter(head_type)
+            logger.info("Applied profile head type %s to the controller", head_type.name)
+        except Exception as exc:
+            logger.warning(
+                "Could not apply head type %s on connect; the controller keeps its "
+                "default axis calibration and W-axis volumes may be wrong: %s",
+                head_type.name, exc,
+            )
 
     def disconnect(self) -> None:
         if self._controller:
@@ -1410,7 +1458,7 @@ class Bravo:
         self._emit("axis_jogged", axis=axis.name, step=step, position=new_pos)
         return new_pos
 
-    async def home_single_axis(self, axis: Axis) -> None:
+    async def home_single_axis(self, axis: Axis, *, expel_ok: bool = False) -> None:
         """Home one axis on explicit operator request.
 
         This forces the full routine even when the axis already reports itself
@@ -1421,14 +1469,31 @@ class Bravo:
         W is then returned to 0, matching what a cold initialize leaves behind
         (see InitializeTask._home_w) — the plunger is expected to sit at zero
         after homing, and the operator asked for the same end state.
+
+        On a head whose W axis is a syringe rather than a tip plunger, returning
+        to zero *expels whatever is held*, wherever the head happens to be. This
+        path has no operator prompt, unlike InitializeTask, so for those heads it
+        refuses when the syringe is not already empty. Pass ``expel_ok=True`` to
+        proceed deliberately — e.g. positioned over waste.
         """
+        if axis is Axis.W and self._profile.head.head_type.is_assaymap and not expel_ok:
+            held = float(self.controller.get_position(Axis.W))
+            if abs(held) > AXIS_EPSILON:
+                raise RuntimeError(
+                    f"W is at {held:.3f} mm, not empty, and on "
+                    f"{self._profile.head.head_type.name} the W axis is a syringe — "
+                    "homing it would expel the contents wherever the head is now. "
+                    "Dispense first, or position over waste and retry with "
+                    "expel_ok=True."
+                )
+
         logger.info("Homing %s axis (operator request; forced)...", axis.name)
         self.controller.home_axes([axis], force=True)
 
         if axis is Axis.W:
             current = float(self.controller.get_position(Axis.W))
             if abs(current) > AXIS_EPSILON:
-                logger.info("Parking W at 0.0 uL after homing (current %.3f uL)...", current)
+                logger.info("Parking W at 0.0 after homing (current %.3f mm)...", current)
                 self.controller.move([AxisMoveInfo(axis=Axis.W, position=0.0)], wait=True)
 
         self._homed_axes.add(axis)
@@ -2143,7 +2208,8 @@ class Bravo:
 
     @staticmethod
     def _labware_base_class(labware: Labware) -> str:
-        return str((labware.metadata or {}).get("base_class") or "").strip().lower()
+        raw = str((labware.metadata or {}).get("base_class") or "").strip().lower()
+        return _VENDOR_BASE_CLASS_ALIASES.get(raw, raw)
 
     @staticmethod
     def _labware_kind(labware: Labware) -> str:

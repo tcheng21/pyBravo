@@ -1,0 +1,74 @@
+{
+  "note": "Smart-head detection exchange for the AssayMAP 96AM head, which identifies itself with type byte 14. A property of the head model, not of any one instrument. The msg_id nibble of packet byte 2 is a rotating correlation counter and is NOT compared -- the semantic fields are.",
+  "head_type_byte": 14,
+  "sent": [
+    {
+      "src_node": 0,
+      "src_dev": 0,
+      "dest_node": 1,
+      "dest_dev": 0,
+      "cmd_type": "SETCMD",
+      "sub_command": "SMART_INIT",
+      "sub_command_value": 24,
+      "cmd_val": 0,
+      "raw": "0001011800000000"
+    },
+    {
+      "src_node": 0,
+      "src_dev": 0,
+      "dest_node": 1,
+      "dest_dev": 0,
+      "cmd_type": "SETCMD",
+      "sub_command": "SMART_RD_EEPROM",
+      "sub_command_value": 28,
+      "cmd_val": 257,
+      "raw": "0001011c00000101"
+    },
+    {
+      "src_node": 0,
+      "src_dev": 0,
+      "dest_node": 1,
+      "dest_dev": 0,
+      "cmd_type": "GETCMD",
+      "sub_command": "SMART_RD_EEPROM_VAL",
+      "sub_command_value": 29,
+      "cmd_val": 0,
+      "raw": "0001031d00000000"
+    }
+  ],
+  "received": [
+    {
+      "src_node": 1,
+      "src_dev": 0,
+      "dest_node": 0,
+      "dest_dev": 0,
+      "cmd_type": "SETCMD_RESP",
+      "sub_command": "SMART_INIT",
+      "sub_command_value": 24,
+      "cmd_val": 0,
+      "raw": "0100021800000000"
+    },
+    {
+      "src_node": 1,
+      "src_dev": 0,
+      "dest_node": 0,
+      "dest_dev": 0,
+      "cmd_type": "SETCMD_RESP",
+      "sub_command": "SMART_RD_EEPROM",
+      "sub_command_value": 28,
+      "cmd_val": 257,
+      "raw": "0100021c00000101"
+    },
+    {
+      "src_node": 1,
+      "src_dev": 0,
+      "dest_node": 0,
+      "dest_dev": 0,
+      "cmd_type": "GETCMD_RESP",
+      "sub_command": "SMART_RD_EEPROM_VAL",
+      "sub_command_value": 29,
+      "cmd_val": 14,
+      "raw": "0100041d0000000e"
+    }
+  ]
+}

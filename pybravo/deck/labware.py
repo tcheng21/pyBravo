@@ -15,6 +15,17 @@ from pybravo.types import MAX_LOCATIONS, MIN_LOCATION
 
 logger = logging.getLogger(__name__)
 _LABWARE_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "labware_catalog.yaml"
+# Definitions a feature ships with itself, merged on top of whatever the catalog
+# resolves to. The snapshot cannot carry them: with Mongo configured it is
+# overwritten on every successful load, and without it, committing a full
+# snapshot replaces whatever catalog a site already has.
+_LABWARE_OVERLAY_DIR = Path(__file__).resolve().parents[2] / "config" / "labware_catalog.d"
+
+
+def _labware_overlay_dir() -> Path:
+    """Overlay directory, overridable the same way the snapshot path is."""
+    override = os.environ.get("PYBRAVO_LABWARE_OVERLAY_DIR", "").strip()
+    return Path(override) if override else _LABWARE_OVERLAY_DIR
 _LABWARE_ASSET_DIR = Path(__file__).resolve().parents[2] / "labware"
 _DEFAULT_LABWARE_SNAPSHOT_PATH = Path(__file__).resolve().parents[2] / "config" / "labware_catalog.snapshot.yaml"
 
@@ -587,7 +598,7 @@ def build_labware_catalog() -> LabwareCatalog:
             if count:
                 _write_labware_snapshot(snapshot_path, definitions, source="mongo")
                 logger.info("Loaded %d labware definitions from Mongo", count)
-                return InMemoryLabwareCatalog(definitions, aliases=alias_ids)
+                return _with_overlays(definitions, alias_ids)
             # Connecting to the wrong database succeeds and returns nothing.
             # Overwriting the snapshot here would destroy the only local copy
             # of the catalog, so fall through and keep what we have.
@@ -609,9 +620,63 @@ def build_labware_catalog() -> LabwareCatalog:
             len(snapshot_definitions),
             snapshot_path,
         )
-        return InMemoryLabwareCatalog(snapshot_definitions, aliases=snapshot_alias_ids)
+        return _with_overlays(snapshot_definitions, snapshot_alias_ids)
 
-    return InMemoryLabwareCatalog(_mirrored_builtin_definitions())
+    return _with_overlays(_mirrored_builtin_definitions(), {})
+
+
+def _read_labware_overlays() -> list[LabwareDefinition]:
+    """Every definition in config/labware_catalog.d/*.yaml, in filename order.
+
+    Parsed exactly as the snapshot is, so an overlay row that LabwareDefinition
+    rejects is skipped with a warning rather than taking the whole file down --
+    and, as with the snapshot, an unexpected field silently loses that one row.
+    """
+    overlay_dir = _labware_overlay_dir()
+    if not overlay_dir.is_dir():
+        return []
+    out: list[LabwareDefinition] = []
+    for path in sorted(overlay_dir.glob("*.yaml")):
+        definitions = _read_labware_snapshot(path)
+        if definitions:
+            logger.info(
+                "Loaded %d labware definitions from overlay %s", len(definitions), path.name
+            )
+        out.extend(definitions)
+    return out
+
+
+def _with_overlays(definitions, aliases) -> LabwareCatalog:
+    """Merge the overlay directory on top of *definitions*, matching by id.
+
+    A feature that needs particular labware to work -- AssayMAP cartridge racks,
+    say -- ships it here rather than in the snapshot, so it survives a Mongo load
+    and does not replace a site's own catalog. An overlay replacing an existing id
+    is logged, because it is the one case that could silently change geometry
+    somebody else relies on.
+    """
+    overlay_defs = _read_labware_overlays()
+    if not overlay_defs:
+        return InMemoryLabwareCatalog(definitions, aliases=aliases)
+
+    overlay_defs, overlay_aliases = normalize_labware_definitions(overlay_defs)
+    by_id = {d.id: d for d in definitions}
+    added = replaced = 0
+    for definition in overlay_defs:
+        if definition.id in by_id:
+            logger.warning(
+                "Labware overlay replaces catalog entry %s (%s)",
+                definition.id, definition.name,
+            )
+            replaced += 1
+        else:
+            added += 1
+        by_id[definition.id] = definition
+
+    merged_aliases = dict(aliases or {})
+    merged_aliases.update(overlay_aliases or {})
+    logger.info("Labware overlays: %d added, %d replaced", added, replaced)
+    return InMemoryLabwareCatalog(list(by_id.values()), aliases=merged_aliases)
 
 
 def _write_labware_snapshot(

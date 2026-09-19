@@ -4167,6 +4167,51 @@ document.querySelectorAll('.deck-cell').forEach(cell => {
     });
 });
 
+// The Process panel's Labware dropdown used to be display-only: syncProcessLabwareSelection
+// wrote the deck's current labware into it and nothing ever read it back, so picking a
+// value silently did nothing and was overwritten on the next sync. It looked editable,
+// which is worse than being obviously read-only. It now assigns, through the same endpoint
+// the Config button uses.
+//
+// It confirms first, because a select can be changed by a scroll wheel while it has focus,
+// and reassigning deck labware by accident means the next press computes its Z against the
+// wrong labware height.
+document.getElementById('proc-labware')?.addEventListener('change', async (event) => {
+    const select = event.target;
+    const location = parseInt(document.getElementById('proc-location')?.value || '0', 10);
+    const labwareId = select.value || '';
+
+    if (!location) {
+        log('Select a location before assigning labware', 'error');
+        syncProcessLabwareSelection();
+        return;
+    }
+
+    const current = getDeckDetail(location);
+    const currentId = String(current?.definition_id || current?.id || '');
+    if (labwareId === currentId) return;
+
+    const selected = state.labwareCatalog.find(item => item.id === labwareId);
+    const what = labwareId ? (selected?.name || labwareId) : 'nothing (clear the location)';
+    const from = current?.name ? `"${current.name}"` : 'an empty pad';
+    if (!confirm(`Set location ${location} to ${what}?\n\nIt currently holds ${from}. Deck labware sets the height every press and shuck is measured against.`)) {
+        syncProcessLabwareSelection();   // put the dropdown back
+        return;
+    }
+
+    const res = labwareId
+        ? await apiCall(`/api/deck/${location}/labware`, 'PUT', { labware_id: labwareId })
+        : await apiCall(`/api/deck/${location}/labware`, 'DELETE');
+    if (res) {
+        await refreshStateNow();
+        log(labwareId
+            ? `Assigned ${res.labware?.name || what} to location ${location}`
+            : `Cleared location ${location}`, 'success');
+    } else {
+        syncProcessLabwareSelection();   // assignment failed; do not leave a stale selection
+    }
+});
+
 document.getElementById('btn-cfg-assign-labware')?.addEventListener('click', async () => {
     const location = parseInt(document.getElementById('cfg-location')?.value || '0');
     const labwareId = document.getElementById('cfg-labware')?.value || '';

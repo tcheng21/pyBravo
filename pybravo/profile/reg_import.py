@@ -20,8 +20,19 @@ from typing import Any
 from pybravo.deck.teachpoints import Teachpoints
 from pybravo.motion.axes import AxisConfig, get_default_axis_config
 from pybravo.profile.profile import BravoProfile
-from pybravo.tips import get_tip_capacity_ul, get_tip_id_for_capacity
-from pybravo.types import Axis, AxisRange, HeadType, SpeedLevel, SpeedProfile
+from pybravo.tips import (
+    get_tip_capacity_ul,
+    get_tip_id_for_capacity,
+    get_tip_length_mm,
+)
+from pybravo.types import (
+    VENDOR_HEAD_TYPE_MAP,
+    Axis,
+    AxisRange,
+    HeadType,
+    SpeedLevel,
+    SpeedProfile,
+)
 
 _PROFILE_SECTION_RE = re.compile(
     r"\[HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Velocity11\\Bravo2\\Profiles\\([^\\\]]+)(?:\\(.*?))?\]"
@@ -36,10 +47,9 @@ _VALID_AXES = {"X", "Y", "Z", "W", "G", "Zg"}
 # is an explicit translation table. Values are confirmed only when we have a
 # .reg/.dat sample from a machine running that head — unknown values still
 # surface as a warning and land in ``profile.extra``.
-_REGISTRY_HEAD_TYPE_MAP: dict[int, HeadType] = {
-    1: HeadType.HT_384_D_70,   # confirmed against a 384ST profile export
-    3: HeadType.HT_96_D_200,   # confirmed against a 96LT profile export
-}
+# A registry profile's "Head type" uses the same vendor numbering as the
+# smart-head EEPROM and the VWorks device profile — see VENDOR_HEAD_TYPE_MAP.
+_REGISTRY_HEAD_TYPE_MAP = VENDOR_HEAD_TYPE_MAP
 
 _AXIS_KEY_MAP: dict[str, tuple[str, type]] = {
     "Ticks per engineering unit": ("ticks_per_eng_unit", float),
@@ -53,6 +63,7 @@ _AXIS_KEY_MAP: dict[str, tuple[str, type]] = {
     "Homing soft stop deceleration": ("homing_soft_stop_decel", float),
     "Minimum move distance at full accel": ("min_move_full_accel", float),
     "Check for alignment": ("check_for_alignment", bool),
+    "Darwin calibration offset": ("darwin_calibration_offset", float),
     "Fast velocity": ("fast_velocity", float),
     "Medium velocity": ("med_velocity", float),
     "Slow velocity": ("slow_velocity", float),
@@ -235,12 +246,28 @@ def _apply_root(profile: BravoProfile, root: dict[str, Any], warnings: list[str]
             resolved_capacity = get_tip_capacity_ul(head_for_tip, tip_id)
             profile.head.default_tip_capacity = resolved_capacity
             profile.head.teach_tip_capacity = resolved_capacity
+            # Resolve the length too. Without this the field keeps whatever
+            # BravoProfile.default() seeded from *its* default head, which is a
+            # plausible-looking number for the wrong tip — and it feeds
+            # deck_surface_Z = teachpoint_Z + teach_tip_length_mm, so being wrong
+            # displaces every tip press and aspirate by that error.
+            profile.head.teach_tip_length_mm = get_tip_length_mm(head_for_tip, tip_id)
         else:
             warnings.append(
                 f"Registry 'Default tip' = {raw_tip!r} (µL) has no matching tip "
                 f"definition for head {head_for_tip.name if isinstance(head_for_tip, HeadType) else head_for_tip} — "
                 "verify the teach tip selection after import."
             )
+    if "Gripper G motion for Cartridge/Tip shucking" in root:
+        profile.safety.cartridge_shuck_g_mm = _to_float(
+            root["Gripper G motion for Cartridge/Tip shucking"],
+            profile.safety.cartridge_shuck_g_mm,
+        )
+    if "Gripper Zg motion for Cartridge/Tip shucking" in root:
+        profile.safety.cartridge_shuck_zg_mm = _to_float(
+            root["Gripper Zg motion for Cartridge/Tip shucking"],
+            profile.safety.cartridge_shuck_zg_mm,
+        )
     if "Default tip additional" in root:
         extra["registry_default_tip_additional"] = root["Default tip additional"]
     if "Head type A/D register" in root:
@@ -308,6 +335,10 @@ def _apply_axis(profile: BravoProfile, axis_name: str, kv: dict[str, Any]) -> No
         homing_soft_stop_decel=_to_float(kv.get("Homing soft stop deceleration"), getattr(base, "homing_soft_stop_decel", 300.0)),
         min_move_full_accel=_to_float(kv.get("Minimum move distance at full accel"), getattr(base, "min_move_full_accel", 0.0)),
         check_for_alignment=_to_bool(kv.get("Check for alignment", getattr(base, "check_for_alignment", True))),
+        darwin_calibration_offset=_to_float(
+            kv.get("Darwin calibration offset"),
+            getattr(base, "darwin_calibration_offset", 0.0),
+        ),
         speeds=speeds,
     )
 

@@ -15,7 +15,7 @@ protocol stack, the workflow designer, the web API, liquid-class calibration,
 and the vision subsystem.
 
 - **Robert Keyser** ([@Robert-Keyser-Calico](https://github.com/Robert-Keyser-Calico))
-- **[@tiffeikon](https://github.com/tiffeikon)**
+- **Tiff Cheng**[@tcheng21](https://github.com/tcheng21)
 
 Liquid-class calibration data in `config/liquid_classes.yaml` carries its own
 per-entry attribution, preserving credit for the original calibration work.

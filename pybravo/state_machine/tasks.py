@@ -41,7 +41,7 @@ from pybravo.profile.profile import BravoProfile
 from pybravo.protocol.commands import CommandID, LightCommandData
 from pybravo.state_machine.engine import ErrorAction, StateMachineTask, TaskStatus
 from pybravo.tip_offsets import ResolvedTipOffsets
-from pybravo.tips import get_tip_length_mm
+from pybravo.tips import get_tip_length_mm, is_cartridge_tip
 from pybravo.types import (
     AXIS_EPSILON,
     GRIPPER_THICKNESS,
@@ -227,6 +227,87 @@ def _liquid_well_depth_mm(labware: Labware | None) -> float:
     return float((labware.metadata or {}).get("well_depth_mm") or 0.0)
 
 
+# How far the AssayMAP probes protrude below the head reference plane that the
+# teachpoints were taught against. Solved from the Startup/Shutdown captures, in
+# which the operator confirms the pipetting is done with bare probes.
+#
+# At the wash station (teachpoint z 105.35, THICKNESS 49.50, WELL_DEPTH 19.80) this
+# is the only value that puts VWorks' own Z commands on sensible numbers:
+#
+#     retract      10.000 mm ABOVE the labware top  (= the profile approach height)
+#     post-expel    3.000 mm below the top
+#     dispense     10.000 mm below the top
+#     aspirate     10.800 mm below the top = 9.000 mm from the well bottom
+#
+# It is corroborated independently by the vendor labware files: the resulting
+# tip_delta of 55.5 - 17.3 = 38.2 is exactly the DISPOSABLE_TIP_LENGTH recorded
+# for both fixtures the head uses bare (Tip Wash Station, 96AM Receiver Plate) --
+# a field that played no part in solving for it.
+#
+# This was previously 0.0, which is not merely imprecise but impossible: it places
+# the probe 6.5 mm ABOVE the labware top at the moment of aspirating, and for a
+# given distance-from-bottom it commands the head 17.3 mm lower than VWorks does,
+# driving the probes through the bottom of a 19.8 mm well.
+#
+# NOT YET VERIFIED ON HARDWARE. It is a property of the head, not of the labware.
+BARE_PROBE_LENGTH_MM = 17.3
+
+
+# VWorks returns Zg at ~66.7% of the axis limit after the stripper plate has
+# lifted, while the lift itself runs at full speed. Measured on the wire in
+# VW14_CartridgeOnOff_pos6 and the LT250 captures; there is no profile field for
+# it, hence a fraction of the limit rather than a value for one machine.
+SHUCK_ZG_RETURN_FRACTION = 2.0 / 3.0
+
+
+# How far VWorks force-presses. Every captured press -- cartridges and LT250 tips,
+# every fixture -- covers exactly this, after a fast approach with force off. It is
+# the press stroke, not the distance to the consumable: the head starts this far
+# above the seated position and stalls somewhere inside it.
+PRESS_TRAVEL_MM = 25.0
+
+
+def _axis_speed(profile, axis: Axis, level: SpeedLevel) -> tuple[float, float]:
+    """(velocity, acceleration) for *axis* at *level*, or (0.0, 0.0) if unset.
+
+    Zero tells the controller to use the axis limit, i.e. full speed. That is what
+    these paths did by omission, and it is precisely what VWorks does not do: it
+    presses at the profile's SLOW speeds and drives the syringe at its SAFE speeds.
+    Reading them from the profile keeps the numbers where a machine can override
+    them rather than hard-coded from one capture.
+
+    NB the speeds live in `AxisConfig.speeds[SpeedLevel]`, not as `slow_velocity`
+    style attributes. A `getattr(cfg, "safe_velocity", 0.0)` silently yields 0.0 --
+    which is how the syringe ended up running at the axis limit while the code read
+    as though it were asking for the safe speed.
+    """
+    cfg = profile.axes.get(axis.name)
+    speeds = getattr(cfg, "speeds", None) if cfg is not None else None
+    if not speeds:
+        return 0.0, 0.0
+    sp = speeds.get(level)
+    if sp is None:
+        return 0.0, 0.0
+    return float(getattr(sp, "velocity", 0.0) or 0.0), float(getattr(sp, "acceleration", 0.0) or 0.0)
+
+
+def _w_safe_speed(profile) -> tuple[float, float]:
+    """Syringe speed for a plunger move that is not metering liquid.
+
+    VWorks drives W to zero at 16.67% / 32.94%, which on this profile is exactly
+    `safe_velocity` 100 uL/s and `safe_acceleration` 200 uL/s^2. Leaving it unset
+    runs the plunger at the axis limit -- 6x faster -- which is harmless with an
+    empty syringe and is not what we want with 250 uL in it. See A36.
+    """
+    return _axis_speed(profile, Axis.W, SpeedLevel.SAFE)
+
+
+def _axis_velocity_limit(profile, axis: Axis) -> float:
+    """The axis' fast velocity from the profile, i.e. what 100% means here."""
+    v, _ = _axis_speed(profile, axis, SpeedLevel.FAST)
+    return v
+
+
 def _build_liquid_z_geometry(
     *,
     teachpoints: Teachpoints,
@@ -245,20 +326,33 @@ def _build_liquid_z_geometry(
     teach_length = None if teach_tip_length_mm is None else float(teach_tip_length_mm)
 
     tip_delta_mm = 0.0
-    if head_type.is_disposable:
-        if not tips_on_head:
-            raise RuntimeError(
-                f"Liquid handling with disposable head {head_type.name} requires tips on the head"
-            )
-        if attached_length is None:
-            raise RuntimeError(
-                f"Liquid handling with disposable head {head_type.name} requires a known attached tip length"
-            )
+    if head_type.mounts_consumable:
+        consumable = "cartridges" if head_type.is_assaymap else "tips"
         if teach_length is None:
             raise RuntimeError(
-                f"Liquid handling with disposable head {head_type.name} requires a taught tip length"
+                f"Liquid handling with {head_type.name} requires a taught tip length"
             )
-        tip_delta_mm = teach_length - attached_length
+        if tips_on_head:
+            if attached_length is None:
+                raise RuntimeError(
+                    f"Liquid handling with {head_type.name} requires a known attached "
+                    f"{consumable[:-1]} length"
+                )
+            attached = attached_length
+        elif head_type.is_disposable:
+            raise RuntimeError(
+                f"Liquid handling with disposable head {head_type.name} requires "
+                f"{consumable} on the head"
+            )
+        else:
+            # AssayMAP can pipette bare as well as with LT250 tips or cartridges.
+            # The probes protrude below the head reference the teachpoints were
+            # taught against, so "bare" is NOT zero length -- see the constant.
+            attached = BARE_PROBE_LENGTH_MM
+        # Teachpoints were taught with `teach_length` fitted, so the head has to
+        # sit lower by whatever the fitted consumable is shorter by. Zero for the
+        # teach tip, 26.3 mm for cartridges, the full teach length when bare.
+        tip_delta_mm = teach_length - attached
 
     top_plane_tip_z = teachpoint_z - labware_height_mm
     well_bottom_tip_z = top_plane_tip_z + well_depth_mm
@@ -1110,7 +1204,9 @@ class InitializeTask(StateMachineTask):
         current_w = float(self._ctrl.get_position(Axis.W))
         if abs(current_w) > AXIS_EPSILON:
             logger.info(
-                "Parking W at 0.0 uL after homing (current %.3f uL)...",
+                # NB: this value is the raw W axis position, which on Darwin is
+                # millimetres, not microlitres — see A26.
+                "Parking W at 0.0 after homing (current %.3f mm)...",
                 current_w,
             )
             self._ctrl.move([AxisMoveInfo(axis=Axis.W, position=0.0)], wait=True)
@@ -4104,16 +4200,40 @@ class TipsOnTask(StateMachineTask):
             wait=True,
         )
 
+    def _mounting_cartridges(self) -> bool:
+        """True when the consumable at this location is a cartridge, not a tip.
+
+        The vendor distinguishes the two: mounting or removing *cartridges*
+        leaves W alone so fluid stays in the syringes, while Tips On/Off with
+        *pipette tips* drives W to zero to empty them. The same head does both,
+        so the branch is on the consumable, not the head type.
+        """
+        metadata = getattr(self._labware, "metadata", None) or {}
+        tip_id = str(metadata.get("tip_definition_id") or "").strip()
+        return is_cartridge_tip(self._profile.head.head_type, tip_id)
+
     async def _ensure_w_zero(self) -> None:
         self._log_step("ensure_w_zero", transfer_stage="source")
+        if self._mounting_cartridges():
+            # Vendor documentation is explicit: "The w-axis is not engaged during
+            # cartridge mounting or removal from the head so that fluid can be
+            # held in the syringes and probes." Zeroing W here would expel it.
+            # Note this is specific to cartridges — mounting pipette tips on the
+            # same head *does* zero W, which is what the branch below still does.
+            logger.info("AssayMAP: leaving W untouched before cartridge seating.")
+            return
         current_w = float(self._ctrl.get_position(Axis.W))
         if abs(current_w) <= 1e-6:
             logger.info("W already at 0.0 uL before tips on.")
             return
-        w_cfg = self._profile.axes.get("W")
-        velocity = float(getattr(w_cfg, "safe_velocity", 0.0) or 0.0) if w_cfg is not None else 0.0
-        acceleration = float(getattr(w_cfg, "safe_acceleration", 0.0) or 0.0) if w_cfg is not None else 0.0
-        logger.warning("Resetting W to 0.0 uL before tips on (current %.3f)...", current_w)
+        # Was getattr(w_cfg, "safe_velocity") -- an attribute AxisConfig does not
+        # have, so this silently resolved to 0.0 and ran the plunger at the axis
+        # limit. See _axis_speed.
+        velocity, acceleration = _w_safe_speed(self._profile)
+        logger.warning(
+            "Resetting W to 0.0 uL at %.1f uL/s before tips on (current %.3f)...",
+            velocity, current_w,
+        )
         self._ctrl.move(
             [AxisMoveInfo(axis=Axis.W, position=0.0, velocity=velocity, acceleration=acceleration)],
             wait=True,
@@ -4197,14 +4317,76 @@ class TipsOnTask(StateMachineTask):
             if hasattr(self._ctrl, "tip_force_jog"):
                 self._ctrl.tip_force_jog(Axis.Z, peak_current, z)
             else:
-                self._ctrl.jog(JogParams(
+                # Two moves, the shape VWorks uses: descend fast with force off to
+                # PRESS_TRAVEL_MM above the seat, then force-press only that last
+                # stretch at the profile's SLOW speed (8% / 26.67%, i.e. 10 mm/s and
+                # 100 mm/s^2 here).
+                #
+                # Both halves matter and for different reasons. The slow speed is
+                # what the head arrives at the consumable with, which decides how it
+                # seats. The fast approach is what keeps a press to ~4 s: force-
+                # pressing the whole descent is safe and detects correctly, but it
+                # covers 110-130 mm at 10 mm/s and takes 11-13 s. See A33/A36.
+                # The press runs in +Z (sequences.jog commands POSITIVE), so the
+                # approach is only meaningful when it lies below where the head
+                # already is. If the head is already past it, skip straight to the
+                # force press rather than retreating to "approach" from underneath.
+                approach_z = z - PRESS_TRAVEL_MM
+                current_z = float(self._ctrl.get_position(Axis.Z))
+                if approach_z > current_z:
+                    fast_v, fast_a = _axis_speed(self._profile, Axis.Z, SpeedLevel.FAST)
+                    logger.info(
+                        "Approaching tips: Z %.3f -> %.3f at %.1f mm/s (force off), "
+                        "then a %.1f mm press",
+                        current_z, approach_z, fast_v, PRESS_TRAVEL_MM,
+                    )
+                    self._ctrl.move(
+                        [AxisMoveInfo(axis=Axis.Z, position=approach_z,
+                                      velocity=fast_v, acceleration=fast_a)],
+                        wait=True,
+                    )
+                else:
+                    logger.info(
+                        "Head already at Z %.3f, at or below the %.3f approach; "
+                        "force-pressing from here.",
+                        current_z, approach_z,
+                    )
+                press_v, press_a = _axis_speed(self._profile, Axis.Z, SpeedLevel.SLOW)
+                final_z = self._ctrl.jog(JogParams(
                     axis=Axis.Z,
-                    velocity=25.0,
-                    acceleration=250.0,
+                    velocity=press_v,
+                    acceleration=press_a,
                     max_position=z,
                     tolerance=tolerance,
                     peak_current=peak_current,
                 ))
+                # Where the press actually stalled is the one number that says how
+                # well the consumable seated, and jog already computes it -- it was
+                # simply discarded. A press that stops barely short is a firm seat;
+                # one that stops near the far end barely touched anything, and both
+                # are reported as plain success by the acceptance window alone.
+                # VWorks stalls ~1.729 mm short of target on this head.
+                if isinstance(final_z, (int, float)):
+                    short_by = z - float(final_z)
+                    if short_by < 0.0:
+                        # Past the commanded far point. On a real axis that raises
+                        # EXCEEDED_DEST before we get here, so seeing it means the
+                        # controller is not enforcing the acceptance window --
+                        # SimulationController's jog, for instance, adds the target
+                        # to the current position and models no force stop. Say so,
+                        # rather than reporting a negative shortfall.
+                        logger.warning(
+                            "Tips On press ended at Z=%.3f, past the %.3f target "
+                            "(window %.3f..%.3f). The controller is not enforcing "
+                            "the press window, so seating was NOT verified.",
+                            final_z, z, z - tolerance, z + tolerance,
+                        )
+                    else:
+                        logger.warning(
+                            "Tips On press stalled at Z=%.3f, %.3f mm short of the "
+                            "%.3f target (accepted window %.3f..%.3f)",
+                            final_z, short_by, z, z - tolerance, z + tolerance,
+                        )
         except Exception as exc:
             await self._recover_to_safe_z_after_press_failure()
             message = self._tips_on_failure_message(exc)
@@ -4304,6 +4486,13 @@ class TipsOnTask(StateMachineTask):
             HeadType.HT_8_D_LT,
             HeadType.HT_96_D_200,
             HeadType.HT_96_D_200_S2,
+            # AssayMAP presses cartridges into a packed bed, which needs the
+            # long-tip forces, not the short-tip ones. Captured traffic shows the
+            # instrument pressing at 66.67% force; the LT table's 0.6 A at 96
+            # channels maps to 67%, while the ST table's 0.3 A maps to 38% and
+            # would leave cartridges unseated. Without this the head falls through
+            # to ST by accident rather than by choice.
+            HeadType.HT_96_ASSAYMAP,
         } else "ST"
         table = _normalize_tip_current_table(profile_limits.get(table_key))
         if not table:
@@ -4525,16 +4714,110 @@ class TipsOffTask(StateMachineTask):
             [AxisMoveInfo(axis=Axis.Z, position=z, velocity=z_velocity, acceleration=z_acceleration)],
             wait=True,
         )
+        if self._ejects_with_gripper():
+            # The stripper plate removes both cartridges and pipette tips, but
+            # only the tip case empties the syringes first: the vendor keeps W
+            # out of cartridge removal precisely so fluid can be held across a
+            # cartridge change.
+            if not self._mounting_cartridges():
+                w_v, w_a = _w_safe_speed(self._profile)
+                logger.info(
+                    "Emptying syringes (W -> 0.0) at %.1f uL/s before removing pipette tips...",
+                    w_v,
+                )
+                self._ctrl.move(
+                    [AxisMoveInfo(axis=Axis.W, position=0.0, velocity=w_v, acceleration=w_a)],
+                    wait=True,
+                )
+            await self._shuck_with_gripper()
+            return
         logger.info("Ejecting tips (W -> %.1f)...", w_position)
         self._ctrl.move(
             [AxisMoveInfo(axis=Axis.W, position=w_position)],
             wait=True,
         )
-        logger.info("Resetting W after tips off...")
+        w_v, w_a = _w_safe_speed(self._profile)
+        logger.info("Resetting W after tips off at %.1f uL/s...", w_v)
         self._ctrl.move(
-            [AxisMoveInfo(axis=Axis.W, position=0.0)],
+            [AxisMoveInfo(axis=Axis.W, position=0.0, velocity=w_v, acceleration=w_a)],
             wait=True,
         )
+
+    def _mounting_cartridges(self) -> bool:
+        """True when the consumable at this location is a cartridge, not a tip.
+
+        The vendor distinguishes the two: mounting or removing *cartridges*
+        leaves W alone so fluid stays in the syringes, while Tips On/Off with
+        *pipette tips* drives W to zero to empty them. The same head does both,
+        so the branch is on the consumable, not the head type.
+        """
+        metadata = getattr(self._labware, "metadata", None) or {}
+        tip_id = str(metadata.get("tip_definition_id") or "").strip()
+        return is_cartridge_tip(self._profile.head.head_type, tip_id)
+
+    def _ejects_with_gripper(self) -> bool:
+        """True for heads that shuck cartridges with the gripper instead of W.
+
+        AssayMAP seats packed-bed cartridges and ejects them by pushing with the
+        gripper; its W axis is a syringe whose position is liquid state, not tip
+        state. Driving W here would move the plunger and silently change the
+        volume held.
+        """
+        return self._profile.head.head_type.is_assaymap
+
+    def _gripper_available(self) -> bool:
+        """True when this machine actually has a gripper to shuck with.
+
+        Mirrors the check InitializeTask uses, plus the controller's own
+        capability flag (Bravo SRT sets ``HAS_GRIPPER = False``).
+        """
+        axes = getattr(self._profile, "axes", {}) or {}
+        if not ("G" in axes and "Zg" in axes):
+            return False
+        return bool(getattr(self._ctrl, "HAS_GRIPPER", True))
+
+    async def _shuck_with_gripper(self) -> None:
+        """Shuck cartridges off with the gripper, leaving W untouched.
+
+        Moves G by ``cartridge_shuck_g_mm`` and the gripper Z by
+        ``cartridge_shuck_zg_mm``, then returns both to where they started —
+        reproducing the sequence captured from the instrument. Both deltas are
+        signed in the profile's own convention; do not assume which direction
+        "open" or "up" is, because G's open end is its minimum while Z is
+        positive-downward.
+        """
+        if not self._gripper_available():
+            raise RuntimeError(
+                "Cartridge ejection needs the gripper, and this machine reports "
+                "none (missing G/Zg axes or HAS_GRIPPER is False). Refusing to "
+                "eject rather than leaving the head loaded over the deck."
+            )
+        self._log_step("shuck_cartridges", transfer_stage="mounted")
+        g_delta = float(self._profile.safety.cartridge_shuck_g_mm)
+        zg_delta = float(self._profile.safety.cartridge_shuck_zg_mm)
+        g_start = float(self._ctrl.get_position(Axis.G))
+        zg_start = float(self._ctrl.get_position(Axis.Zg))
+        # Name the consumable, and say only what this step does. The caller may have
+        # driven W to zero just above (it does for tips, not for cartridges), so an
+        # unqualified "W not moved" here reads as a contradiction in the log.
+        consumable = "cartridges" if self._mounting_cartridges() else "tips"
+        logger.info(
+            "Shucking %s with the gripper: G %.3f -> %.3f, Zg %.3f -> %.3f "
+            "(the shuck itself does not drive W)",
+            consumable, g_start, g_start + g_delta, zg_start, zg_start + zg_delta,
+        )
+        # The lift is the strip itself and runs at full speed in VWorks too; only
+        # the return is slowed, to ~66.7% of the Zg limit. That is not a profile
+        # field, so it is expressed as a fraction of the axis limit rather than a
+        # bare number for this one machine.
+        zg_return_v = SHUCK_ZG_RETURN_FRACTION * _axis_velocity_limit(self._profile, Axis.Zg)
+        self._ctrl.move([AxisMoveInfo(axis=Axis.G, position=g_start + g_delta)], wait=True)
+        self._ctrl.move([AxisMoveInfo(axis=Axis.Zg, position=zg_start + zg_delta)], wait=True)
+        self._ctrl.move(
+            [AxisMoveInfo(axis=Axis.Zg, position=zg_start, velocity=zg_return_v)],
+            wait=True,
+        )
+        self._ctrl.move([AxisMoveInfo(axis=Axis.G, position=g_start)], wait=True)
 
     async def _retract_z(self) -> None:
         self._log_step("retract_z", transfer_stage="returned" if self._tip_selection is not None else "discarded")

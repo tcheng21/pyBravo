@@ -121,6 +121,11 @@ def head_geometry_for_type(head_type: HeadType) -> HeadGeometry:
         return HeadGeometry(rows=16, columns=1, pitch_x_mm=4.5, pitch_y_mm=4.5)
     if head_type == HeadType.HT_8_D_LT:
         return HeadGeometry(rows=8, columns=1, pitch_x_mm=9.0, pitch_y_mm=9.0)
+    if head_type == HeadType.HT_96_ASSAYMAP:
+        # Cartridges rather than tips, but still 96 positions on the standard
+        # SBS 9 mm grid. Listed explicitly so the geometry is a decision rather
+        # than the fall-through below.
+        return HeadGeometry(rows=8, columns=12, pitch_x_mm=9.0, pitch_y_mm=9.0)
     return HeadGeometry(rows=8, columns=12, pitch_x_mm=9.0, pitch_y_mm=9.0)
 
 

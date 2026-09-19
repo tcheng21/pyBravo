@@ -121,3 +121,26 @@ tips:
   - HT_1536_PINTOOL
   - HT_384_PINTOOL
   - HT_96_PINTOOL
+# AssayMAP labware definitions (labware/*.roiZip) give these directly.
+#
+# The head is taught with a standard LT250 tip -- "96 V11 LT250 Tip Box
+# 19477.002", whose DISPOSABLE_TIP_LENGTH is 55.5 mm -- and then operated with
+# cartridges, which are shorter (29.2 mm) and hold 60 uL of packed bed. The
+# syringe behind them is 250 uL; that is the W-axis range, not a tip capacity.
+- tip_id: am_lt250_teach
+  capacity_ul: 250.0
+  label: LT250 teach tip (AssayMAP)
+  length_mm: 55.5
+  source: vendor-labware-96AM-250uL-Tip-Loading-Station
+  model_3d: null
+  compatible_heads:
+  - HT_96_ASSAYMAP
+- tip_id: am_cartridge_60ul
+  kind: cartridge
+  capacity_ul: 60.0
+  label: AssayMAP cartridge (60 uL bed)
+  length_mm: 29.2
+  source: vendor-labware-96AM-Cartridge-Rack-and-Receiver-Plate
+  model_3d: null
+  compatible_heads:
+  - HT_96_ASSAYMAP
