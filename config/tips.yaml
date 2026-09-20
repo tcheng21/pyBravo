@@ -129,6 +129,11 @@ tips:
 # syringe behind them is 250 uL; that is the W-axis range, not a tip capacity.
 - tip_id: am_lt250_teach
   capacity_ul: 250.0
+  # Agilent Getting Started Guide: above 140 uL through 250 uL tips on a 96AM
+  # head, "the excess aspirated liquid will enter the syringes". The tip holds
+  # 250; the head only keeps 140 of it out of the plumbing. Warned about, not
+  # blocked -- it is contamination and a wash, not a crash.
+  overflow_ul: 140.0
   label: LT250 teach tip (AssayMAP)
   length_mm: 55.5
   source: vendor-labware-96AM-250uL-Tip-Loading-Station

@@ -27,6 +27,15 @@ class TipDefinition:
     # engaged for cartridge mounting or removal, so that fluid can be held in
     # the syringes across a cartridge change.
     kind: str = "tip"
+    # Volume above which aspirated liquid stops being contained by the tip and
+    # passes into the head's syringes. NOT the same as capacity_ul: an Agilent
+    # LT250 tip holds 250 uL, but on a 96AM head the Getting Started guide is
+    # explicit that above 140 uL "the excess aspirated liquid will enter the
+    # syringes". None means no such limit is known for this tip.
+    #
+    # Contamination rather than a crash, and the syringes then need washing --
+    # so this warns and lets the operator continue, it does not block.
+    overflow_ul: float | None = None
 
 
 def is_cartridge_tip(head_type: HeadType | str, tip_id: str | None) -> bool:
@@ -260,6 +269,10 @@ def load_tip_definitions() -> list[TipDefinition]:
                 model_3d=str(item.get("model_3d") or "") or None,
                 compatible_heads=tuple(str(value) for value in list(item.get("compatible_heads") or [])),
                 kind=str(item.get("kind") or "tip"),
+                overflow_ul=(
+                    None if item.get("overflow_ul") in {None, ""}
+                    else float(item.get("overflow_ul"))
+                ),
             )
         )
     return tips
