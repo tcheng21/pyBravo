@@ -8,7 +8,7 @@
 #   teachpoints               all nine, taught on your deck — they are ZERO here
 #   axes.X/Y.homing_offset    from your instrument's own homing calibration
 #
-# Already correct for any AssayMAP head, and derived from decoded VWorks traffic
+# Already correct for any AssayMAP head, and derived from reference measurements
 # cross-checked against Agilent's own profile and documentation:
 #   axes.W                    100 mm / 250 uL syringe, 0.240625 mm per uL
 #   axes.W.darwin_calibration_offset   1.44375 mm — the plunger's flag offset.
@@ -18,7 +18,7 @@
 #   current_limits            press force per channel count
 #   safety.cartridge_shuck_*  the gripper stripper-plate motion
 #
-# Generating this from your own VWorks profile gives you the instrument-specific
+# Generating this from your own the vendor software profile gives you the instrument-specific
 # values directly; see the AssayMAP notes referenced in the pull request.
 name: 96AM
 connection:

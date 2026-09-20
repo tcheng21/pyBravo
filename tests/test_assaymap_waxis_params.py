@@ -1,8 +1,8 @@
 """Golden test: the W-axis parameter table pybravo writes for an AssayMAP head
-must match, word for word, what VWorks 14 wrote to the real instrument.
+must match, word for word, what the vendor software wrote to the real instrument.
 
 Fixture: tests/fixtures/assaymap_waxis_params.json, extracted from a capture of
-VWorks initializing this machine. These 57 values are the plunger's PID and
+the vendor software initializing this machine. These 57 values are the plunger's PID and
 motion tuning -- if they drift, the syringe's force and settling behaviour change
 on real hardware, and that is not something a unit test elsewhere would catch.
 """
@@ -56,7 +56,7 @@ def test_assaymap_resolves_to_the_am_parameter_set():
 
 
 def test_waxis_writes_match_the_captured_frames(expected):
-    """Every parameter, in order, with the same raw word VWorks sent."""
+    """Every parameter, in order, with the same raw word the vendor software sent."""
     rec = RecordingParameterAccess()
     assert apply_waxis_parameters(rec, AM) is True
 
@@ -66,7 +66,7 @@ def test_waxis_writes_match_the_captured_frames(expected):
     names = {int(p): p.name for p in ParamDBs}
     mismatches = [
         f"{names.get(got_id, got_id)} (id {got_id}): "
-        f"ours 0x{got_raw:08X} vs captured 0x{exp_raw:08X}"
+        f"ours 0x{got_raw:08X} vs measured 0x{exp_raw:08X}"
         for (got_id, got_raw), (exp_id, exp_raw) in zip(rec.writes, expected)
         if (got_id, got_raw) != (exp_id, exp_raw)
     ]
@@ -74,7 +74,7 @@ def test_waxis_writes_match_the_captured_frames(expected):
 
 
 def test_parameters_are_committed_once(expected):
-    """VWorks follows each table with a single PARAM_DB_APPLY."""
+    """the vendor software follows each table with a single PARAM_DB_APPLY."""
     rec = RecordingParameterAccess()
     apply_waxis_parameters(rec, AM)
     assert rec.applied == 1

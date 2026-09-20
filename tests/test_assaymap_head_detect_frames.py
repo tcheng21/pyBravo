@@ -68,7 +68,7 @@ def _detection_packets(fake):
 
 
 def test_detection_emits_the_captured_exchange(controller, golden):
-    """Same subcommands, same order, same values as VWorks sent."""
+    """Same subcommands, same order, same values as the vendor software sent."""
     ctrl, fake = controller
     assert ctrl.detect_head_type() == HeadType.HT_96_ASSAYMAP
 
@@ -103,11 +103,11 @@ def test_eeprom_address_is_one_byte_at_offset_one(controller, golden):
     ]
     assert reads, "no SMART_RD_EEPROM packet was sent"
     assert reads[0].cmd_val == 0x0101
-    # and it agrees with the capture
-    captured = next(
+    # and it agrees with the measurement
+    measured = next(
         s for s in golden["sent"] if s["sub_command"] == "SMART_RD_EEPROM"
     )
-    assert reads[0].cmd_val == captured["cmd_val"]
+    assert reads[0].cmd_val == measured["cmd_val"]
 
 
 def test_detection_order_matches_the_instrument(controller, golden):
@@ -123,7 +123,7 @@ def test_detection_order_matches_the_instrument(controller, golden):
 
 
 def test_adc_path_is_not_used(controller):
-    """VWorks never reads STUPID_HEAD_COUNTS when a smart head answers, and
+    """the vendor software never reads STUPID_HEAD_COUNTS when a smart head answers, and
     neither should we -- the EEPROM is authoritative."""
     ctrl, fake = controller
     ctrl.detect_head_type()

@@ -48,7 +48,7 @@ _VALID_AXES = {"X", "Y", "Z", "W", "G", "Zg"}
 # .reg/.dat sample from a machine running that head — unknown values still
 # surface as a warning and land in ``profile.extra``.
 # A registry profile's "Head type" uses the same vendor numbering as the
-# smart-head EEPROM and the VWorks device profile — see VENDOR_HEAD_TYPE_MAP.
+# smart-head EEPROM and the vendor device profile — see VENDOR_HEAD_TYPE_MAP.
 _REGISTRY_HEAD_TYPE_MAP = VENDOR_HEAD_TYPE_MAP
 
 _AXIS_KEY_MAP: dict[str, tuple[str, type]] = {

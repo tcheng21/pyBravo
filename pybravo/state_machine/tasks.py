@@ -232,7 +232,7 @@ def _liquid_well_depth_mm(labware: Labware | None) -> float:
 # which the operator confirms the pipetting is done with bare probes.
 #
 # At the wash station (teachpoint z 105.35, THICKNESS 49.50, WELL_DEPTH 19.80) this
-# is the only value that puts VWorks' own Z commands on sensible numbers:
+# is the only value that puts the vendor software's own Z commands on sensible numbers:
 #
 #     retract      10.000 mm ABOVE the labware top  (= the profile approach height)
 #     post-expel    3.000 mm below the top
@@ -246,21 +246,21 @@ def _liquid_well_depth_mm(labware: Labware | None) -> float:
 #
 # This was previously 0.0, which is not merely imprecise but impossible: it places
 # the probe 6.5 mm ABOVE the labware top at the moment of aspirating, and for a
-# given distance-from-bottom it commands the head 17.3 mm lower than VWorks does,
+# given distance-from-bottom it commands the head 17.3 mm lower than the vendor software does,
 # driving the probes through the bottom of a 19.8 mm well.
 #
 # NOT YET VERIFIED ON HARDWARE. It is a property of the head, not of the labware.
 BARE_PROBE_LENGTH_MM = 17.3
 
 
-# VWorks returns Zg at ~66.7% of the axis limit after the stripper plate has
-# lifted, while the lift itself runs at full speed. Measured on the wire in
-# VW14_CartridgeOnOff_pos6 and the LT250 captures; there is no profile field for
-# it, hence a fraction of the limit rather than a value for one machine.
+# Zg returns at ~66.7% of the axis limit after the stripper plate has lifted,
+# while the lift itself runs at full speed. Measured for both consumables; there
+# is no profile field for it, hence a fraction of the limit rather than a value
+# for one machine.
 SHUCK_ZG_RETURN_FRACTION = 2.0 / 3.0
 
 
-# How far VWorks force-presses. Every captured press -- cartridges and LT250 tips,
+# How far the vendor software force-presses. Every measured press -- cartridges and LT250 tips,
 # every fixture -- covers exactly this, after a fast approach with force off. It is
 # the press stroke, not the distance to the consumable: the head starts this far
 # above the seated position and stalls somewhere inside it.
@@ -271,7 +271,7 @@ def _axis_speed(profile, axis: Axis, level: SpeedLevel) -> tuple[float, float]:
     """(velocity, acceleration) for *axis* at *level*, or (0.0, 0.0) if unset.
 
     Zero tells the controller to use the axis limit, i.e. full speed. That is what
-    these paths did by omission, and it is precisely what VWorks does not do: it
+    these paths did by omission, and it is precisely what the vendor software does not do: it
     presses at the profile's SLOW speeds and drives the syringe at its SAFE speeds.
     Reading them from the profile keeps the numbers where a machine can override
     them rather than hard-coded from one capture.
@@ -294,7 +294,7 @@ def _axis_speed(profile, axis: Axis, level: SpeedLevel) -> tuple[float, float]:
 def _w_safe_speed(profile) -> tuple[float, float]:
     """Syringe speed for a plunger move that is not metering liquid.
 
-    VWorks drives W to zero at 16.67% / 32.94%, which on this profile is exactly
+    the vendor software drives W to zero at 16.67% / 32.94%, which on this profile is exactly
     `safe_velocity` 100 uL/s and `safe_acceleration` 200 uL/s^2. Leaving it unset
     runs the plunger at the axis limit -- 6x faster -- which is harmless with an
     empty syringe and is not what we want with 250 uL in it. See A36.
@@ -4317,7 +4317,7 @@ class TipsOnTask(StateMachineTask):
             if hasattr(self._ctrl, "tip_force_jog"):
                 self._ctrl.tip_force_jog(Axis.Z, peak_current, z)
             else:
-                # Two moves, the shape VWorks uses: descend fast with force off to
+                # Two moves, the shape the vendor software uses: descend fast with force off to
                 # PRESS_TRAVEL_MM above the seat, then force-press only that last
                 # stretch at the profile's SLOW speed (8% / 26.67%, i.e. 10 mm/s and
                 # 100 mm/s^2 here).
@@ -4365,7 +4365,7 @@ class TipsOnTask(StateMachineTask):
                 # simply discarded. A press that stops barely short is a firm seat;
                 # one that stops near the far end barely touched anything, and both
                 # are reported as plain success by the acceptance window alone.
-                # VWorks stalls ~1.729 mm short of target on this head.
+                # the vendor software stalls ~1.729 mm short of target on this head.
                 if isinstance(final_z, (int, float)):
                     short_by = z - float(final_z)
                     if short_by < 0.0:
@@ -4487,7 +4487,7 @@ class TipsOnTask(StateMachineTask):
             HeadType.HT_96_D_200,
             HeadType.HT_96_D_200_S2,
             # AssayMAP presses cartridges into a packed bed, which needs the
-            # long-tip forces, not the short-tip ones. Captured traffic shows the
+            # long-tip forces, not the short-tip ones. Measured traffic shows the
             # instrument pressing at 66.67% force; the LT table's 0.6 A at 96
             # channels maps to 67%, while the ST table's 0.3 A maps to 38% and
             # would leave cartridges unseated. Without this the head falls through
@@ -4781,7 +4781,7 @@ class TipsOffTask(StateMachineTask):
 
         Moves G by ``cartridge_shuck_g_mm`` and the gripper Z by
         ``cartridge_shuck_zg_mm``, then returns both to where they started —
-        reproducing the sequence captured from the instrument. Both deltas are
+        reproducing the sequence measured from the instrument. Both deltas are
         signed in the profile's own convention; do not assume which direction
         "open" or "up" is, because G's open end is its minimum while Z is
         positive-downward.
@@ -4806,7 +4806,7 @@ class TipsOffTask(StateMachineTask):
             "(the shuck itself does not drive W)",
             consumable, g_start, g_start + g_delta, zg_start, zg_start + zg_delta,
         )
-        # The lift is the strip itself and runs at full speed in VWorks too; only
+        # The lift is the strip itself and runs at full speed in the vendor software too; only
         # the return is slowed, to ~66.7% of the Zg limit. That is not a profile
         # field, so it is expressed as a fraction of the axis limit rather than a
         # bare number for this one machine.

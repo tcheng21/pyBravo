@@ -57,7 +57,7 @@ def test_fixture_height_matches_vendor_thickness(
 def test_fixture_base_class(catalog: dict[str, dict], name: str, expected: tuple[float, str]) -> None:
     """base_class must be the vendor's own class name, verbatim.
 
-    VWorks names these after the fixture rather than after its behaviour, and the
+    the vendor software names these after the fixture rather than after its behaviour, and the
     catalog stores what the vendor calls them. Behaviour is bridged separately, in
     bravo.py's _VENDOR_BASE_CLASS_ALIASES.
     """

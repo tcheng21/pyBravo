@@ -1,14 +1,14 @@
-"""Golden test: AssayMAP press and shuck Z, reconstructed from captured traffic.
+"""Golden test: AssayMAP press and shuck Z, reconstructed from reference measurements.
 
 Every Z on this head is referenced to the *top of the labware*, not to the deck.
-Anchoring there collapses three captured operations onto one constant:
+Anchoring there collapses three measured operations onto one constant:
 
     seated Z = labware_top + 60.50      every consumable, every fixture
     seated   = approach + 25.00         the press travel, pinned separately
     shuck Z  = seated - 30.00           LT250 tips
              = seated - 23.00           cartridges
 
-Measured (Off_PartialTipOn_Asp_Disp for the tips, Cartridge_On_Off_Pos6_VW14 for
+Measured (the LT250 measurements for the tips, the cartridge measurements for
 the cartridges; deck layout confirmed by the operator):
 
     labware                  teach_z  THICKNESS  approach   seated    shuck
@@ -18,7 +18,7 @@ the cartridges; deck layout confirmed by the operator):
 
 pyBravo already computes tips_on_position the same labware-referenced way, so the
 capture reduces to the two offsets in config/tip_offsets.yaml. This test runs the
-real resolver and the real formula and reconstructs the captured Z -- it does not
+real resolver and the real formula and reconstructs the measured Z -- it does not
 assert the offsets against themselves.
 
 The profile default these replace is 15.0, which is wrong for both consumables.
@@ -38,9 +38,9 @@ TEACH_TIP_LENGTH_MM = 55.5   # profile head.teach_tip_length_mm for 96AM
 PROFILE_DEFAULT_Z_OFFSET = 15.0
 TOLERANCE_MM = 0.01
 
-# labware name, teach_z, captured approach / seated / shuck.
+# labware name, teach_z, measured approach / seated / shuck.
 # THICKNESS is deliberately NOT listed here -- it is read from the labware catalog,
-# so a wrong height_mm there fails these tests against the captured Z rather than
+# so a wrong height_mm there fails these tests against the measured Z rather than
 # passing quietly. That link is the whole point: catalog -> geometry -> capture.
 CAPTURED = [
     ("96AM 250uL Tip Loading Station", 105.257, 80.234, 105.234, 75.234),
@@ -81,7 +81,7 @@ def _resolve(tipbox: str):
 def test_press_target_matches_the_capture(
     tipbox: str, teach_z: float, approach: float, seated: float, shuck: float,
 ) -> None:
-    """tips_on_position + tips_on_z_offset must land on the seated Z VWorks used."""
+    """tips_on_position + tips_on_z_offset must land on the seated Z the vendor software used."""
     thickness = _catalog_height(tipbox)
     offsets = _resolve(tipbox)
     assert offsets.matched, f"no tip-offset row matched {tipbox!r}"
@@ -93,7 +93,7 @@ def test_press_target_matches_the_capture(
 def test_shuck_z_matches_the_capture(
     tipbox: str, teach_z: float, approach: float, seated: float, shuck: float,
 ) -> None:
-    """tips_on_position - tips_off_z_offset must land on the shuck Z VWorks used.
+    """tips_on_position - tips_off_z_offset must land on the shuck Z the vendor software used.
 
     This is the number that matters most: too shallow and the stripper plate
     never engages, too deep and the gripper drives into the head.

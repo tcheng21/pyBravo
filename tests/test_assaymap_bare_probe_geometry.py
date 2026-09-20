@@ -6,7 +6,7 @@ reference the teachpoints were taught against, so "bare" is not zero length.
 
 The operator confirms the Startup and Shutdown captures pipette bare, and they do
 it at the wash station, whose vendor definition we hold. That is enough to solve
-for the protrusion: it is the only value that puts VWorks' own Z commands on
+for the protrusion: it is the only value that puts the vendor software's own Z commands on
 sensible numbers.
 
     retract      10.000 mm ABOVE the labware top   (= the profile approach height)
@@ -36,7 +36,7 @@ WASH_TEACH_Z = 105.35      # profile teachpoint 1
 WASH_THICKNESS = 49.50     # catalog height_mm, from the vendor file
 WASH_WELL_DEPTH = 19.80    # catalog well_depth_mm
 
-# Head Z as VWorks commanded it, and where that puts the probe relative to the
+# Head Z as the vendor software commanded it, and where that puts the probe relative to the
 # labware top (negative = above it).
 CAPTURED = [
     ("retract", 84.050, -10.000),
@@ -87,7 +87,7 @@ def test_bare_delta_is_the_vendor_bare_fixture_tip_length(teachpoints, wash_stat
 
 
 def test_aspirate_reproduces_the_captured_head_z(teachpoints, wash_station) -> None:
-    """9.0 mm from the well bottom must command exactly the Z VWorks sent."""
+    """9.0 mm from the well bottom must command exactly the Z the vendor software sent."""
     geom = _geometry(teachpoints, wash_station, 9.0)
     assert geom.target_head_z == pytest.approx(104.850, abs=0.01)
 
@@ -102,7 +102,7 @@ def test_dispense_reproduces_the_captured_head_z(teachpoints, wash_station) -> N
 def test_every_captured_move_sits_where_expected(
     teachpoints, wash_station, label: str, head_z: float, depth_below_top: float
 ) -> None:
-    """Each captured Z must place the probe at the stated depth below the labware top.
+    """Each measured Z must place the probe at the stated depth below the labware top.
 
     This is what pins the protrusion: one value has to satisfy all five at once.
     """
@@ -116,7 +116,7 @@ def test_bare_probes_are_never_treated_as_zero_length(teachpoints, wash_station)
 
     With attached=0.0 the delta is the full teach length, which places the probe
     ABOVE the labware top at the moment of aspirating -- physically impossible --
-    and commands the head 17.3 mm lower than VWorks for the same requested depth,
+    and commands the head 17.3 mm lower than the vendor software for the same requested depth,
     driving the probes through the bottom of a 19.8 mm well.
     """
     geom = _geometry(teachpoints, wash_station, 9.0)

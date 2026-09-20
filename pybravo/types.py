@@ -237,7 +237,7 @@ class HeadType(IntEnum):
 # The instrument uses its own head-type numbering, unrelated to the HeadType
 # values above. The same number appears in three places: the smart-head EEPROM
 # at offset 1, the "Head type" key in a registry profile export, and the
-# "Head type" value in a VWorks device profile.
+# "Head type" value in a the vendor software device profile.
 #
 # Only entries confirmed against real hardware belong here. An unrecognised
 # number must resolve to HT_UNKNOWN rather than HeadType(number), which would be

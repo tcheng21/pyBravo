@@ -1,13 +1,13 @@
-"""Golden test: the AssayMAP plunger volume model against captured traffic.
+"""Golden test: the AssayMAP plunger volume model against reference measurements.
 
-Every expected value here was measured from VWorks driving the real instrument
+Every expected value here was measured from the vendor software driving the real instrument
 (captures in ../wireshark) and independently confirmed by the instrument's own
 device profile. If these fail, either the W calibration or the µL conversion has
 drifted, and any volume pyBravo commands would be wrong.
 
 Reference points, all normalized W positions taken off the wire:
 
-    0.184781   "Home W" in the diagnostic, i.e. 0 µL; VWorks Jog/Teach reads 0
+    0.184781   "Home W" in the diagnostic, i.e. 0 µL; the vendor software Jog/Teach reads 0
     0.048125   one MOVE_BY step of the 0->250 µL sweep  = 20 µL
     0.012031   the MOVE_BY of the "asp 5 µL" diagnostic =  5 µL
     0.209156 -> 0.329469   a 50 µL aspirate
@@ -52,7 +52,7 @@ def test_zero_volume_lands_on_the_measured_home_position(calibration):
     [(20.0, STEP_20UL_NORMALIZED), (5.0, STEP_5UL_NORMALIZED)],
 )
 def test_relative_volume_steps_match_captured_move_by(calibration, volume_ul, expected_step):
-    """A volume delta must produce the same normalized step VWorks emitted."""
+    """A volume delta must produce the same normalized step the vendor software emitted."""
     home = calibration.to_normalized(ul_to_mm(0.0, AM))
     target = calibration.to_normalized(ul_to_mm(volume_ul, AM))
     assert target - home == pytest.approx(expected_step, abs=1e-5)

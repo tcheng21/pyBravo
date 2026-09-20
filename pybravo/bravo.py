@@ -101,7 +101,7 @@ _DARWIN_HEAD_RESISTOR_OHMS: dict[HeadType, int] = {
 }
 
 
-# VWorks names some labware base classes after the fixture rather than after its
+# the vendor software names some labware base classes after the fixture rather than after its
 # behaviour, and those names are stored verbatim in the catalog because that is
 # what the vendor calls them. This maps the ones that behave as a tip box onto
 # pybravo's own vocabulary, in one place, so every base_class check inherits it.

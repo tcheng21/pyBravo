@@ -57,9 +57,8 @@ offsets:
     tips_on_z_offset: 0.0
 
   # ---------------------------------------------------------------------------
-  # AssayMAP 96AM cartridge head. All four rows below are derived from captured
-  # VWorks traffic (Off_PartialTipOn_Asp_Disp + Cartridge_On_Off_Pos6_VW14),
-  # referenced to the top of the labware. Measured, not tuned:
+  # AssayMAP 96AM cartridge head. All four rows below are measured for both
+  # consumables and referenced to the top of the labware. Measured, not tuned:
   #
   #     seated Z = labware_top + 60.50     one constant, every consumable
   #     shuck Z  = seated - 30.00          LT250 tips
@@ -72,8 +71,8 @@ offsets:
   # to 0.007 mm across two different tip labwares and the cartridge rack.
   #
   # tips_on_z_offset 5.0: without it the press target sits 5 mm SHALLOWER than
-  # VWorks commands. That is the dangerous direction here -- the press is force
-  # limited, and seating is detected by the axis stopping short of target, so too
+  # the vendor commands. That is the dangerous direction here -- the press is
+  # force limited, and seating is detected by the axis stopping short of target, so too
   # shallow a target risks both under-seating and a false "nothing there".
   #
   # tips_off_w_position is deliberately absent: this head does not eject with W
@@ -101,7 +100,7 @@ offsets:
     tips_on_z_offset: 5.0
 
   # The two plain Agilent LT250 boxes. 19477.002 is the one on deck position 3 in
-  # the capture; its vendor THICKNESS of 60.53 confirms the value the capture
+  # the measurement; its vendor THICKNESS of 60.53 confirms the value the measurement
   # implied. "Standard" is a different fixture at 60.00 -- 0.53 mm thinner.
   #
   # Both carry the same offsets, and that is the point of anchoring to the labware

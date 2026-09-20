@@ -1,4 +1,4 @@
-"""Golden test: tip-press force, pinned against captured VWorks traffic.
+"""Golden test: tip-press force, pinned against reference measurements.
 
 Vendor traffic for this head contains two presses of the *same* 25.0 mm
 travel that differ only in force:
@@ -6,7 +6,7 @@ travel that differ only in force:
     full 96-channel LT250 press   force byte 170   66.67%
     partial press, <=4 channels   force byte   5    1.96%
 
-The cartridge press in ``Cartridge_On_Off_Pos6_VW14`` uses byte 170 as well, so
+The cartridge press in the cartridge measurements uses byte 170 as well, so
 one number covers both consumables at full head.
 
 **The full-head byte is confirmed; the low end is not.** Op A sits on the
@@ -14,7 +14,7 @@ teachpoint with no subset offset, so its channel count is known from geometry
 alone and 170 is a genuine measurement. The partial's channel count is *not*
 known -- the operator recalls "no more than 4". Our table reaches byte 5 only at
 exactly 1 channel, giving 7/10/12 for 2/3/4. So either the subset was a single
-tip and the curve is right, or VWorks floors small subsets at byte 5 and we press
+tip and the curve is right, or the vendor software floors small subsets at byte 5 and we press
 up to +7 bytes harder there. See T25; do not restate the low end as confirmed.
 
 These are asserted through the *production* path -- head-type table selection,
@@ -54,7 +54,7 @@ def _press_force_byte(head_type: HeadType, rows: int, cols: int) -> int:
 
 
 def test_full_head_press_matches_the_capture() -> None:
-    """96 AssayMAP channels press at the byte VWorks sent for tips and cartridges."""
+    """96 AssayMAP channels press at the byte the vendor software sent for tips and cartridges."""
     assert _press_force_byte(HeadType.HT_96_ASSAYMAP, 8, 12) == FULL_HEAD_FORCE_BYTE
 
 
@@ -64,8 +64,8 @@ def test_single_channel_press_matches_the_capture() -> None:
     Pressing a single tip at full-head force is the failure this guards: it is
     the same motion, the same travel, and nothing in the protocol objects.
 
-    This asserts our table's 1-channel value against the captured byte. It is a
-    regression guard, not proof the capture was one channel -- see the module
+    This asserts our table's 1-channel value against the measured byte. It is a
+    regression guard, not proof the measurement was one channel -- see the module
     docstring.
     """
     assert _press_force_byte(HeadType.HT_96_ASSAYMAP, 1, 1) == PARTIAL_ONE_CHANNEL_FORCE_BYTE

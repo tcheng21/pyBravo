@@ -1,12 +1,12 @@
-"""Golden test: cartridge-seating failure detection, from captured traffic.
+"""Golden test: cartridge-seating failure detection, from reference measurements.
 
 A force-limited press either stalls against a cartridge and stops short, or runs
 to the commanded target because nothing is there. There is no protocol error
-either way -- VWorks detects the failure purely from the final Z position, and so
+either way -- the vendor software detects the failure purely from the final Z position, and so
 does pybravo. A press that cannot tell those apart is the most dangerous state
 this system can be in, so the numbers are pinned here.
 
-Measured, from Cartridge_On_Off_Pos6_VW14 and TipOnError_Retry_Ignore
+Measured, from the cartridge measurements and a deliberate-failure press
 (normalized Z, converted with the repo's own Darwin calibration):
 
     approach        0.592228    98.057 mm
@@ -101,7 +101,7 @@ def test_an_early_stall_is_rejected_not_reported_as_seated(monkeypatch):
     """A press stopped well short of the seat must NOT be read as success.
 
     pybravo force-limits the *entire* descent from safe Z rather than doing
-    VWorks' fast approach followed by a bounded 25 mm press, which raises the
+    the vendor software's fast approach followed by a bounded 25 mm press, which raises the
     obvious worry that a collision on the way down would stall the axis and be
     reported as seated consumables.
 
@@ -121,7 +121,7 @@ def test_an_early_stall_is_rejected_not_reported_as_seated(monkeypatch):
 
 @pytest.mark.parametrize("short_mm,accepted", [
     (0.0, False),    # rode to the commanded farthest point -> nothing there
-    (1.729, True),   # the measured VWorks stall
+    (1.729, True),   # the measured reference stall
     (4.0, True),     # still inside the window
     (12.0, False),   # far too early -> something else stopped the head
 ])
