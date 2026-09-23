@@ -66,6 +66,7 @@ from pybravo.tip_offsets import ResolvedTipOffsets, get_tip_offset_table
 from pybravo.tips import (
     get_default_tip_id_for_head,
     get_tip_capacity_ul,
+    get_tip_definition,
     get_tip_id_for_capacity,
     get_tip_length_mm,
 )
@@ -663,6 +664,7 @@ class Bravo:
             teach_tip_length_mm=self._profile.head.teach_tip_length_mm,
             attached_tip_length_mm=self._attached_tip_length_mm,
             tips_on_head=self._tips_on_head,
+            tip_overflow_ul=self.mounted_tip_overflow_ul(),
         )
         await self._engine.execute(task)
         if task.status == TaskStatus.ABORTED:
@@ -789,6 +791,7 @@ class Bravo:
             teach_tip_length_mm=self._profile.head.teach_tip_length_mm,
             attached_tip_length_mm=self._attached_tip_length_mm,
             tips_on_head=self._tips_on_head,
+            tip_overflow_ul=self.mounted_tip_overflow_ul(),
         )
         await self._engine.execute(task)
         if task.status == TaskStatus.ABORTED:
@@ -1881,6 +1884,27 @@ class Bravo:
             or float(getattr(self._profile.head, "teach_tip_capacity", 0.0) or 0.0)
             or float(getattr(self._profile.head, "default_tip_capacity", 0.0) or 0.0),
         )
+
+    def mounted_tip_overflow_ul(self) -> float | None:
+        """The volume above which the mounted tip stops containing the liquid.
+
+        Above it the excess passes into the head's syringes. Tips that have no
+        such limit, and heads that have nothing mounted, return None.
+
+        Gated on something actually being on the head, which matters more than
+        it looks: `active_tip_id()` falls back to the *taught* tip when the head
+        is bare, and a bare AssayMAP head reports the LT250 teach tip. Without
+        the gate, bare-probe pipetting -- which is the vendor's own recommended
+        way to draw more than the limit -- would warn about a tip that is not
+        there.
+        """
+        if not self._tips_on_head:
+            return None
+        tip = get_tip_definition(self._profile.head.head_type, self.active_tip_id())
+        if tip is None:
+            return None
+        overflow = getattr(tip, "overflow_ul", None)
+        return None if overflow is None else float(overflow)
 
     def active_tip_id(self) -> str:
         if self._tips_on_head and self._tip_definition_id:

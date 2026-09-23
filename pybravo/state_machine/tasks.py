@@ -3177,6 +3177,55 @@ class ScanStackHeightTask(StateMachineTask):
         await asyncio.to_thread(self._ctrl.move, [_axis_move(self._ctrl, Axis.Z, safe_z)], True)
 
 
+def _tip_overflow_prompt(
+    *,
+    overflow_ul: float | None,
+    liquid_ul: float,
+    location: int,
+    operation: str,
+) -> dict[str, Any] | None:
+    """The prompt for drawing more liquid than the tip can hold, or None.
+
+    Above its overflow volume a tip stops containing the liquid and the excess
+    passes into the head's syringes -- for the AssayMAP LT250 tips that is
+    140 uL of the tip's 250. The vendor's guidance is to use the bare probes
+    instead above that volume.
+
+    That outcome is contamination and a wash, not a crash, so this **warns and
+    lets the operator continue**. Refusing would be wrong: drawing into the
+    syringes deliberately is a legitimate thing to do, and the machine has no
+    way to know whether this one was deliberate.
+
+    ``overflow_ul`` is None for every tip with no such limit, and for a head
+    that is bare or carrying cartridges -- in those cases there is nothing to
+    warn about and this returns None.
+    """
+    if overflow_ul is None or overflow_ul <= 0.0:
+        return None
+    if liquid_ul <= overflow_ul:
+        return None
+    message = (
+        f"{operation} at location {location} draws {liquid_ul:.1f} uL, above the "
+        f"{overflow_ul:.1f} uL this tip can hold.\n\n"
+        "The excess will pass through the tip into the head's syringes. That "
+        "means contamination and a wash before the next liquid, not a crash. "
+        "The bare probes are the supported way to draw more than this.\n\n"
+        "Ignore proceeds with the move as commanded.\n"
+        "Abort stops the workflow."
+    )
+    return {
+        "kind": "tip_overflow",
+        "title": "Volume exceeds what the tip can hold",
+        # No "retry": nothing about re-running the same step would change the
+        # volume, so offering it would only be a second way to say "ignore".
+        "choices": ["ignore", "abort"],
+        "message": message,
+        "location": location,
+        "volume_ul": float(liquid_ul),
+        "overflow_ul": float(overflow_ul),
+    }
+
+
 class AspirateTask(StateMachineTask):
     """Aspirate a volume at a deck location."""
 
@@ -3202,6 +3251,7 @@ class AspirateTask(StateMachineTask):
         teach_tip_length_mm: float | None = None,
         attached_tip_length_mm: float | None = None,
         tips_on_head: bool = False,
+        tip_overflow_ul: float | None = None,
     ) -> None:
         super().__init__(f"Aspirate_{location}")
         self._ctrl = controller
@@ -3224,6 +3274,7 @@ class AspirateTask(StateMachineTask):
         self._teach_tip_length_mm = teach_tip_length_mm
         self._attached_tip_length_mm = attached_tip_length_mm
         self._tips_on_head = bool(tips_on_head)
+        self._tip_overflow_ul = tip_overflow_ul
         self._live_status: dict[str, Any] = {
             "task": "aspirate",
             "location": self._location,
@@ -3270,6 +3321,9 @@ class AspirateTask(StateMachineTask):
 
     def get_steps(self) -> list[tuple[str, Callable[[], Awaitable[None]]]]:
         return [
+            # First, before anything moves: a warning the operator has to answer
+            # is only useful while the head is still parked.
+            ("check_tip_capacity", self._check_tip_capacity),
             ("safe_z_retract", self._safe_z_retract),
             ("move_to_location", self._move_to_location),
             ("lower_to_plate_top", self._lower_to_plate_top),
@@ -3281,6 +3335,30 @@ class AspirateTask(StateMachineTask):
             ("tip_touch", self._tip_touch_step),
             ("retract_z", self._retract_z),
         ]
+
+    async def _check_tip_capacity(self) -> None:
+        """Warn if this draw would push liquid past the tip into the syringes.
+
+        The quantity compared is the liquid front, not the plunger travel. A
+        pre-aspirate gap is drawn first and so rides *above* the liquid; a
+        post-aspirate gap is drawn afterwards, below it, and pushes the column
+        further toward the syringe. Only the latter moves liquid up.
+        """
+        prompt = _tip_overflow_prompt(
+            overflow_ul=self._tip_overflow_ul,
+            liquid_ul=self._volume + self._post_aspirate,
+            location=self._location,
+            operation="Aspirate",
+        )
+        if prompt is None:
+            return
+        logger.warning(
+            "Aspirate at location %d draws %.1f uL against a %.1f uL tip limit; "
+            "asking the operator.",
+            self._location, prompt["volume_ul"], prompt["overflow_ul"],
+        )
+        self._operator_prompt = prompt
+        raise RuntimeError(prompt["message"])
 
     async def _safe_z_retract(self) -> None:
         self._update_status("safe_z_retract")
@@ -3875,6 +3953,7 @@ class MixTask(StateMachineTask):
         teach_tip_length_mm: float | None = None,
         attached_tip_length_mm: float | None = None,
         tips_on_head: bool = False,
+        tip_overflow_ul: float | None = None,
     ) -> None:
         super().__init__(f"Mix_{location}")
         self._ctrl = controller
@@ -3900,6 +3979,7 @@ class MixTask(StateMachineTask):
         self._teach_tip_length_mm = teach_tip_length_mm
         self._attached_tip_length_mm = attached_tip_length_mm
         self._tips_on_head = bool(tips_on_head)
+        self._tip_overflow_ul = tip_overflow_ul
         self._live_status: dict[str, Any] = {
             "task": "mix",
             "location": self._location,
@@ -3955,12 +4035,37 @@ class MixTask(StateMachineTask):
 
     def get_steps(self) -> list[tuple[str, Callable[[], Awaitable[None]]]]:
         return [
+            # See AspirateTask: first, before the head commits to the move.
+            ("check_tip_capacity", self._check_tip_capacity),
             ("safe_z_retract", self._safe_z_retract),
             ("move_to_location", self._move_to_location),
             ("mix_cycles", self._mix_cycles_step),
             ("tip_touch", self._tip_touch_step),
             ("retract_z", self._retract_z),
         ]
+
+    async def _check_tip_capacity(self) -> None:
+        """Mixing aspirates, so it has the same exposure as AspirateTask.
+
+        Each cycle draws ``volume`` and gives it back, so the liquid front is
+        ``volume`` however many cycles run. The pre-aspirate gap is drawn first
+        and rides above the liquid, so it does not push the column any higher.
+        """
+        prompt = _tip_overflow_prompt(
+            overflow_ul=self._tip_overflow_ul,
+            liquid_ul=self._volume,
+            location=self._location,
+            operation="Mix",
+        )
+        if prompt is None:
+            return
+        logger.warning(
+            "Mix at location %d draws %.1f uL against a %.1f uL tip limit; "
+            "asking the operator.",
+            self._location, prompt["volume_ul"], prompt["overflow_ul"],
+        )
+        self._operator_prompt = prompt
+        raise RuntimeError(prompt["message"])
 
     async def _safe_z_retract(self) -> None:
         self._update_status("safe_z_retract")
