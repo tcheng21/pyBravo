@@ -46,6 +46,7 @@ from pybravo.types import (
     AXIS_EPSILON,
     GRIPPER_THICKNESS,
     GRIPPER_TO_BASE_OF_HEAD_GAP,
+    HEIGHT_DIFF_96AM_TO_96LT,
     LT_TIP_CURRENT_TABLE,
     OPEN_GRIPPER_POSITION,
     ST_TIP_CURRENT_TABLE,
@@ -1914,6 +1915,22 @@ class PickPlaceTask(StateMachineTask):
                 - stack_height
                 + _LENGTH_DIFFERENCE_96_TO_384
             )
+            if self._profile.head.head_type.is_assaymap:
+                # The 96AM head body sits higher than the 96LT this branch was
+                # written around, so its gripper reaches the plate 4.71 mm short
+                # without this. Measured: PickPlace_Pos5_Pos8_Pos5 grips at
+                # z+zg = 138.632, and the formula above yields 133.922 -- exactly
+                # HEIGHT_DIFF_96AM_TO_96LT apart.
+                #
+                # This is what that constant is for. It was defined in types.py and
+                # used only as a fallback "tip length" in _tip_length_for_pick_place,
+                # which is unreachable whenever the profile supplies a teach tip
+                # length. Its real home is here.
+                #
+                # AssayMAP is neither is_disposable nor is_fixed, so it lands in this
+                # branch by omission rather than by choice -- the same trap that has
+                # produced most of this head's bugs.
+                new_zg += HEIGHT_DIFF_96AM_TO_96LT
         safe_zg = self._clamp(self._profile.axes["Zg"].range.min_pos, Axis.Zg)
 
         if new_zg > zg_max:
